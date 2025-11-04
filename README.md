@@ -11,29 +11,50 @@ Single NestJS application with clear module boundaries serving 4 clients:
 - Admin Dashboard
 - SPV Dashboard
 
-## 📚 Documentation
-
-- **[START_NOW_PLAN.md](./START_NOW_PLAN.md)** - Prioritized implementation plan (START HERE)
-- **[Context.md](./Context.md)** - Complete system requirements and architecture
-
 ## 🚀 Quick Start
 
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database (Supabase recommended for development)
+
+### Setup
+
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Set up environment variables
-cp .env.sample .env
-# Edit .env with your configuration
+# 2. Set up environment variables
+cp .env.example .env
+# Edit .env with your Supabase connection string
 
-# Run migrations
-npx prisma migrate dev
+# 3. Generate Prisma client
+npm run prisma:generate
 
-# Generate Prisma client
-npx prisma generate
+# 4. Run database migrations
+npx prisma migrate dev --name init
 
-# Start development server
+# 5. Seed with dummy data (optional)
+npm run prisma:seed
+
+# 6. Start development server
 npm run dev
+```
+
+Server runs on: `http://localhost:3008`
+
+### Database Setup (Supabase)
+
+1. Create account at [supabase.com](https://supabase.com)
+2. Create new project
+3. Get connection string: **Settings → Database → Transaction pooler**
+4. Update `.env` with both `DATABASE_URL` and `DIRECT_URL`
+
+Example:
+
+```bash
+DATABASE_URL="postgresql://postgres.xyz:[PASSWORD]@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.xyz:[PASSWORD]@aws-0-region.pooler.supabase.com:5432/postgres"
 ```
 
 ## 📦 Tech Stack
@@ -48,33 +69,41 @@ npm run dev
 
 ## 🎯 Current Status
 
-### ✅ Completed (Phase 1)
+### ✅ Completed
 
-- Basic project setup
-- Simple User CRUD
-- Prisma configuration
-- TypeScript configuration
-- ESLint + Prettier
+- ✅ NestJS project setup with TypeScript
+- ✅ Prisma ORM with PostgreSQL (Supabase)
+- ✅ Complete database schema (20 models)
+- ✅ Pool module with 4 endpoints
+  - `GET /pools` - List all pools with filters
+  - `GET /pools/featured` - Get featured pools
+  - `GET /pools/:poolAddress` - Get pool details
+  - `GET /pools/:poolAddress/stats` - Get pool analytics
+- ✅ DTOs with validation (class-validator)
+- ✅ Database seeding with dummy data
+- ✅ ESLint + Prettier
+- ✅ Environment configuration
 
 ### 🚧 In Progress
 
-Following the [START_NOW_PLAN.md](./START_NOW_PLAN.md):
+**Next Up:**
 
-**Phase 1 (Today)**: Core Foundation
+- [ ] Simple JWT authentication
+- [ ] Blockchain providers (ethers.js)
+- [ ] User positions & portfolio endpoints
+- [ ] Transaction history module
+- [ ] Blockchain event indexer
 
-- [ ] Complete database schema (15 models)
-- [ ] Simple JWT auth
-- [ ] Blockchain providers
-- [ ] Pool module (read-only)
-- [ ] Transaction module
-- [ ] User portfolio
+### 📊 What's Seeded
 
-**Phase 2 (Tomorrow)**: Blockchain Indexer
+After running `npm run prisma:seed`, you'll have:
 
-- [ ] Event indexer
-- [ ] Event handlers
-- [ ] Background jobs
-- [ ] Auto-sync with chain
+- 3 Pools (Nigerian T-Bill, UK Gilt Bond, Stable Yield Fund)
+- 3 Users (Alice, Bob, Admin) with positions
+- Pool analytics (TVL, APY, investors)
+- Sample transactions
+- 2 Networks (Base Sepolia, Base Mainnet)
+- 2 Assets (USDC, cNGN)
 
 ## 🗂️ Project Structure
 
@@ -118,7 +147,7 @@ piron-backend/
 ## 🔧 Available Scripts
 
 ```bash
-npm run dev              # Start development server
+npm run dev              # Start development server (watch mode)
 npm run build            # Build for production
 npm run start:prod       # Start production server
 
@@ -127,33 +156,36 @@ npm run test             # Run tests
 
 npm run prisma:generate  # Generate Prisma client
 npm run prisma:migrate   # Run migrations
-npm run prisma:studio    # Open Prisma Studio
+npm run prisma:studio    # Open Prisma Studio (GUI)
+npm run prisma:seed      # Seed database with dummy data
 ```
 
 ## 🔐 Environment Variables
 
-See `.env.sample` for all required variables:
+See `.env.example` for all required variables:
 
 ```bash
-# Database
-DATABASE_URL="postgresql://..."
+# Database (Supabase)
+DATABASE_URL="postgresql://postgres.xyz:[PASSWORD]@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.xyz:[PASSWORD]@aws-0-region.pooler.supabase.com:5432/postgres"
 
-# JWT
+# Application
+NODE_ENV=development
+PORT=3008
+CORS_ORIGIN=http://localhost:3000
+
+# JWT Authentication
 JWT_SECRET=your-secret-key
+JWT_EXPIRY=15m
+JWT_REFRESH_SECRET=your-refresh-secret
+JWT_REFRESH_EXPIRY=7d
 
-# Blockchain
+# Blockchain (optional - for Phase 2)
 BASE_SEPOLIA_RPC=https://sepolia.base.org
-BASE_SEPOLIA_MANAGER_ADDRESS=0x...
-BASE_SEPOLIA_STABLE_YIELD_MANAGER_ADDRESS=0x...
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# AWS S3
-AWS_ACCESS_KEY_ID=xxx
-AWS_SECRET_ACCESS_KEY=xxx
-AWS_S3_BUCKET=piron-kyc-documents
+BASE_SEPOLIA_CHAIN_ID=84532
 ```
+
+**Note**: Special characters in passwords must be URL-encoded (e.g., `@` → `%40`).
 
 ## 🎯 Roadmap
 
@@ -216,36 +248,47 @@ AWS_S3_BUCKET=piron-kyc-documents
 # View logs
 npm run dev
 
-# Check database
+# Check database connection and data
 npx prisma studio
 
-# Test blockchain connection
-curl http://localhost:3000/health/blockchain
+# Verify database is connected
+# Look for "✅ Database connected" in server logs
 
-# Test auth
-curl -X POST http://localhost:3000/auth/dev-login \
-  -H "Content-Type: application/json" \
-  -d '{"walletAddress":"0x..."}'
+# Test API endpoints
+curl http://localhost:3008/pools
+curl http://localhost:3008/pools/featured
+```
+
+## 🧪 Testing
+
+```bash
+# Test pool endpoints
+curl http://localhost:3008/pools
+curl http://localhost:3008/pools/featured
+curl http://localhost:3008/pools/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+# Open database GUI
+npm run prisma:studio
 ```
 
 ## 🤝 Contributing
 
-1. Follow the [START_NOW_PLAN.md](./START_NOW_PLAN.md)
-2. Create feature branches from `main`
+1. Create feature branches from `main`
+2. Follow existing code structure and naming conventions
 3. Write tests for new features
-4. Submit PR with clear description
+4. Run `npm run lint` before committing
+5. Submit PR with clear description
 
 ## 📄 License
 
 ISC
 
-## 🔗 Links
+## 🔗 Useful Links
 
-- [Context Document](./Context.md) - Full system requirements
-- [Implementation Plan](./START_NOW_PLAN.md) - Step-by-step guide
-- [NestJS Docs](https://docs.nestjs.com)
-- [Prisma Docs](https://www.prisma.io/docs)
-- [ethers.js Docs](https://docs.ethers.org)
+- [NestJS Documentation](https://docs.nestjs.com)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [ethers.js Documentation](https://docs.ethers.org)
 
 ---
 
