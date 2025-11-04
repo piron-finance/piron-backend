@@ -1,0 +1,973 @@
+// Piron Finance - Complete Database Schema
+// This schema covers both Single-Asset and Stable Yield pools with all off-chain data
+// Generated: 2025-01-04
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT
+// ============================================================================
+
+model User {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique
+  email         String?  @unique
+  userType      UserType @default(REGULAR_USER)
+  kycStatus     KYCStatus @default(NOT_STARTED)
+  region        UserRegion?
+  
+  // Status
+  isActive      Boolean  @default(true)
+  isBanned      Boolean  @default(false)
+  banReason     String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relationships
+  profile           UserProfile?
+  kycDocuments      KYCDocument[]
+  bankAccounts      BankAccount[]
+  transactions      Transaction[]
+  poolPositions     PoolPosition[]
+  withdrawalRequests WithdrawalRequest[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  fiatTransactions  FiatTransaction[]
+  
+  @@index([walletAddress])
+  @@index([email])
+  @@index([userType, isActive])
+  @@index([kycStatus])
+}
+
+model UserProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Personal Info
+  firstName       String?
+  lastName        String?
+  dateOfBirth     DateTime?
+  phoneNumber     String?
+  
+  // Address
+  country         String?
+  city            String?
+  state           String?
+  postalCode      String?
+  addressLine1    String?
+  addressLine2    String?
+  
+  // Investment Profile
+  riskTolerance   RiskTolerance?
+  investmentGoals Json?              // Array of goals
+  preferredAssets String[]
+  netWorth        NetWorthRange?
+  occupation      String?
+  
+  // Preferences
+  emailNotifications   Boolean @default(true)
+  smsNotifications     Boolean @default(false)
+  marketingEmails      Boolean @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([country])
+}
+
+model KYCDocument {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  documentType    DocumentType
+  documentUrl     String        // S3/R2 key
+  documentHash    String?       // For integrity verification
+  
+  status          DocumentStatus @default(PENDING)
+  rejectionReason String?
+  
+  // Verification
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  expiresAt       DateTime?     // For documents that expire
+  
+  // Metadata
+  fileSize        Int?
+  mimeType        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model BankAccount {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  accountName     String
+  accountNumber   String
+  bankName        String
+  bankCode        String
+  currency        String        // NGN, GHS, KES, etc.
+  
+  isPrimary       Boolean  @default(false)
+  isVerified      Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([userId, isPrimary])
+}
+
+// ============================================================================
+// BLOCKCHAIN & NETWORKS
+// ============================================================================
+
+model Network {
+  id              String   @id @default(uuid())
+  chainId         Int      @unique
+  name            String   @unique
+  rpcUrl          String
+  explorerUrl     String
+  
+  isTestnet       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Indexer state
+  lastIndexedBlock BigInt  @default(0)
+  indexerStatus    IndexerStatus @default(STOPPED)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships
+  pools           Pool[]
+  transactions    Transaction[]
+  
+  @@index([isActive])
+}
+
+model Asset {
+  id              String   @id @default(uuid())
+  chainId         Int
+  address         String
+  symbol          String
+  name            String
+  decimals        Int
+  
+  // Geographic
+  country         String?
+  region          String?
+  
+  // Metadata
+  isStablecoin    Boolean  @default(true)
+  isApproved      Boolean  @default(true)
+  logoUrl         String?
+  
+  // Price tracking
+  currentPrice    Decimal  @default(1.0) @db.Decimal(18, 6)
+  lastPriceUpdate DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([chainId, address])
+  @@index([symbol, isApproved])
+  @@index([chainId, isApproved])
+}
+
+// ============================================================================
+// POOLS (Both Single-Asset & Stable Yield)
+// ============================================================================
+
+model Pool {
+  id              String   @id @default(uuid())
+  
+  // Blockchain identity
+  chainId         Int
+  network         Network  @relation(fields: [chainId], references: [chainId])
+  poolAddress     String
+  poolType        PoolType
+  
+  // Basic info
+  name            String
+  description     String?
+  
+  // Contract references
+  managerAddress  String
+  escrowAddress   String
+  assetAddress    String    // Store as string, query Asset separately
+  assetSymbol     String
+  assetDecimals   Int
+  
+  // Pool configuration
+  minInvestment   Decimal  @db.Decimal(18, 6)
+  
+  // Single-Asset Pool specific
+  instrumentType  InstrumentType?      // DISCOUNTED or INTEREST_BEARING
+  targetRaise     Decimal?  @db.Decimal(18, 6)
+  epochEndTime    DateTime?
+  maturityDate    DateTime?
+  discountRate    Int?                 // Basis points
+  
+  // Status
+  status          PoolStatus @default(FUNDING)
+  isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)
+  isPaused        Boolean  @default(false)
+  
+  // Off-chain metadata
+  country         String?
+  region          String?
+  issuer          String?              // "Central Bank of Nigeria"
+  issuerLogo      String?
+  securityType    String?              // "T-Bill", "Government Bond"
+  cusip           String?              // Unique security identifier
+  isin            String?              // International Securities ID
+  prospectusUrl   String?              // Link to prospectus
+  
+  // Risk & Compliance
+  riskRating      String?              // AAA, AA+, etc.
+  minimumKYCLevel KYCStatus @default(APPROVED)
+  
+  // Display
+  displayOrder    Int?
+  tags            String[]
+  
+  // Timestamps
+  createdOnChain  DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships
+  positions           PoolPosition[]
+  transactions        Transaction[]
+  instruments         Instrument[]
+  couponPayments      CouponPayment[]
+  analytics           PoolAnalytics?
+  snapshots           PoolSnapshot[]
+  withdrawalRequests  WithdrawalRequest[]
+  spvOperations       SPVOperation[]
+  navHistory          NAVHistory[]
+  
+  @@unique([chainId, poolAddress])
+  @@index([poolType, status])
+  @@index([isActive, isFeatured])
+  @@index([chainId, status])
+  @@index([country, region])
+  @@index([status, maturityDate])
+}
+
+model PoolPosition {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poolId          String
+  pool            Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  // Core position data
+  totalShares     Decimal  @default(0) @db.Decimal(18, 6)
+  totalDeposited  Decimal  @default(0) @db.Decimal(18, 6)
+  totalWithdrawn  Decimal  @default(0) @db.Decimal(18, 6)
+  
+  // Single-Asset Pool specific
+  couponsClaimed      Decimal  @default(0) @db.Decimal(18, 6)
+  pendingRefund       Decimal  @default(0) @db.Decimal(18, 6)
+  discountAccrued     Decimal  @default(0) @db.Decimal(18, 6)
+  lastCouponClaimTime DateTime?
+  
+  // Stable Yield Pool specific
+  firstDepositTime    DateTime?
+  lastDepositTime     DateTime?
+  lastWithdrawalTime  DateTime?
+  
+  // Calculated fields (updated by jobs)
+  currentValue        Decimal  @default(0) @db.Decimal(18, 6)
+  realizedReturn      Decimal  @default(0) @db.Decimal(18, 6)
+  unrealizedReturn    Decimal  @default(0) @db.Decimal(18, 6)
+  totalReturn         Decimal  @default(0) @db.Decimal(18, 6)
+  
+  // Status
+  isActive            Boolean  @default(true)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@unique([userId, poolId])
+  @@index([userId])
+  @@index([poolId])
+  @@index([poolId, isActive])
+  @@index([userId, isActive, currentValue])
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  poolId          String?
+  pool            Pool?    @relation(fields: [poolId], references: [id])
+  
+  // Transaction details
+  type            TransactionType
+  txHash          String   @unique
+  chainId         Int
+  network         Network  @relation(fields: [chainId], references: [chainId])
+  
+  // Amounts
+  amount          Decimal  @db.Decimal(18, 6)
+  shares          Decimal? @db.Decimal(18, 6)
+  fee             Decimal? @db.Decimal(18, 6)
+  
+  // Context
+  from            String?
+  to              String?
+  blockNumber     BigInt
+  blockHash       String?
+  gasUsed         BigInt?
+  gasPrice        BigInt?
+  
+  // Status
+  status          TxStatus @default(PENDING)
+  failureReason   String?
+  
+  // Timestamps
+  timestamp       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, type])
+  @@index([poolId, type])
+  @@index([txHash])
+  @@index([chainId, blockNumber])
+  @@index([status, createdAt])
+}
+
+// ============================================================================
+// INSTRUMENTS (Stable Yield Pools)
+// ============================================================================
+
+model Instrument {
+  id                  String   @id @default(uuid())
+  poolId              String
+  pool                Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  // On-chain identity
+  instrumentId        Int      // On-chain instrument ID
+  instrumentType      InstrumentType
+  
+  // Purchase details
+  purchasePrice       Decimal  @db.Decimal(18, 6)
+  faceValue           Decimal  @db.Decimal(18, 6)
+  purchaseDate        DateTime
+  maturityDate        DateTime
+  
+  // Interest-bearing specific
+  annualCouponRate    Int?     // Basis points
+  couponFrequency     Int?     // 0=none, 2=semi-annual, 4=quarterly, 12=monthly
+  nextCouponDueDate   DateTime?
+  couponsPaid         Int      @default(0)
+  
+  // Status
+  isActive            Boolean  @default(true)
+  maturedAt           DateTime?
+  realizedYield       Decimal? @db.Decimal(18, 6)
+  
+  // Off-chain metadata
+  issuer              String?
+  cusip               String?
+  isin                String?
+  documentUrl         String?
+  rating              String?  // AAA, AA+, etc.
+  
+  // SPV tracking
+  purchasedBy         String?  // SPV user ID
+  proofHash           String?  // IPFS hash of purchase proof
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relationships
+  couponPayments      CouponPayment[]
+  
+  @@unique([poolId, instrumentId])
+  @@index([poolId, isActive])
+  @@index([maturityDate, isActive])
+  @@index([nextCouponDueDate, isActive])
+}
+
+model CouponPayment {
+  id              String   @id @default(uuid())
+  poolId          String
+  pool            Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  instrumentId    String?
+  instrument      Instrument? @relation(fields: [instrumentId], references: [id])
+  
+  amount          Decimal  @db.Decimal(18, 6)
+  couponNumber    Int
+  dueDate         DateTime
+  paidDate        DateTime
+  
+  // Distribution tracking
+  totalDistributed  Decimal @default(0) @db.Decimal(18, 6)
+  totalClaimed      Decimal @default(0) @db.Decimal(18, 6)
+  distributionStatus DistributionStatus @default(RECEIVED)
+  
+  // SPV tracking
+  receivedBy      String?  // SPV user ID
+  txHash          String?
+  proofHash       String?  // IPFS hash
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([poolId, dueDate])
+  @@index([distributionStatus])
+}
+
+// ============================================================================
+// WITHDRAWAL QUEUE (Stable Yield Pools)
+// ============================================================================
+
+model WithdrawalRequest {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  poolId          String
+  pool            Pool     @relation(fields: [poolId], references: [id])
+  
+  // On-chain identity
+  requestId       Int      // On-chain request ID
+  
+  // Request details
+  shares          Decimal  @db.Decimal(18, 6)
+  estimatedValue  Decimal  @db.Decimal(18, 6)
+  
+  // Status
+  status          WithdrawalStatus @default(QUEUED)
+  requestTime     DateTime
+  processedTime   DateTime?
+  actualValue     Decimal? @db.Decimal(18, 6)
+  
+  // Processing
+  processedBy     String?  // Operator who processed
+  txHash          String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([poolId, requestId])
+  @@index([userId, status])
+  @@index([poolId, status])
+  @@index([status, requestTime])
+}
+
+// ============================================================================
+// SPV OPERATIONS
+// ============================================================================
+
+model SPVOperation {
+  id              String   @id @default(uuid())
+  poolId          String
+  pool            Pool     @relation(fields: [poolId], references: [id])
+  
+  operationType   SPVOpType
+  amount          Decimal  @db.Decimal(18, 6)
+  
+  // Transfer tracking
+  txHash          String?
+  transferId      String?  // On-chain transfer ID
+  
+  // Status
+  status          OperationStatus @default(PENDING)
+  initiatedBy     String   // SPV user ID
+  approvedBy      String?  // Admin who approved
+  
+  // Metadata
+  notes           String?
+  proofHash       String?  // IPFS hash
+  
+  // Timestamps
+  initiatedAt     DateTime @default(now())
+  approvedAt      DateTime?
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([poolId, operationType])
+  @@index([status, initiatedAt])
+  @@index([initiatedBy])
+}
+
+// ============================================================================
+// ANALYTICS & METRICS
+// ============================================================================
+
+model PoolAnalytics {
+  id                String   @id @default(uuid())
+  poolId            String   @unique
+  pool              Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  // Current metrics
+  totalValueLocked  Decimal  @default(0) @db.Decimal(18, 6)
+  totalShares       Decimal  @default(0) @db.Decimal(18, 6)
+  navPerShare       Decimal? @db.Decimal(18, 6)  // For Stable Yield
+  
+  // User metrics
+  uniqueInvestors   Int      @default(0)
+  activeInvestors   Int      @default(0)
+  
+  // Flow metrics
+  totalDeposits     Decimal  @default(0) @db.Decimal(18, 6)
+  totalWithdrawals  Decimal  @default(0) @db.Decimal(18, 6)
+  netFlow           Decimal  @default(0) @db.Decimal(18, 6)
+  
+  // Performance
+  apy               Decimal? @db.Decimal(8, 4)   // Annualized Percentage Yield
+  totalReturn       Decimal? @db.Decimal(18, 6)
+  
+  // 24h metrics
+  volume24h         Decimal  @default(0) @db.Decimal(18, 6)
+  depositors24h     Int      @default(0)
+  withdrawals24h    Int      @default(0)
+  
+  // 7d metrics
+  volume7d          Decimal  @default(0) @db.Decimal(18, 6)
+  newInvestors7d    Int      @default(0)
+  
+  // 30d metrics
+  volume30d         Decimal  @default(0) @db.Decimal(18, 6)
+  newInvestors30d   Int      @default(0)
+  
+  updatedAt         DateTime @updatedAt
+  
+  @@index([totalValueLocked])
+  @@index([apy])
+}
+
+model PoolSnapshot {
+  id                String   @id @default(uuid())
+  poolId            String
+  pool              Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  timestamp         DateTime
+  
+  // Snapshot data
+  totalValueLocked  Decimal  @db.Decimal(18, 6)
+  totalShares       Decimal  @db.Decimal(18, 6)
+  navPerShare       Decimal? @db.Decimal(18, 6)
+  uniqueInvestors   Int
+  volume24h         Decimal  @db.Decimal(18, 6)
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([poolId, timestamp])
+  @@index([timestamp])
+}
+
+model NAVHistory {
+  id              String   @id @default(uuid())
+  poolId          String
+  pool            Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  navPerShare     Decimal  @db.Decimal(18, 6)
+  totalNAV        Decimal  @db.Decimal(18, 6)
+  totalShares     Decimal  @db.Decimal(18, 6)
+  
+  // Components
+  cashReserves    Decimal  @db.Decimal(18, 6)
+  instrumentValue Decimal  @db.Decimal(18, 6)
+  accruedFees     Decimal  @db.Decimal(18, 6)
+  
+  timestamp       DateTime
+  createdAt       DateTime @default(now())
+  
+  @@index([poolId, timestamp])
+}
+
+model PlatformMetrics {
+  id                String   @id @default(uuid())
+  date              DateTime @unique
+  
+  // TVL
+  totalValueLocked  Decimal  @db.Decimal(18, 6)
+  tvlChange24h      Decimal  @db.Decimal(18, 6)
+  
+  // Users
+  totalUsers        Int
+  activeUsers       Int
+  newUsers          Int
+  
+  // Pools
+  totalPools        Int
+  activePools       Int
+  newPools          Int
+  
+  // Transactions
+  totalTransactions Int
+  volume24h         Decimal  @db.Decimal(18, 6)
+  
+  // Revenue
+  protocolRevenue   Decimal  @db.Decimal(18, 6)
+  transactionFees   Decimal  @db.Decimal(18, 6)
+  expenseRatios     Decimal  @db.Decimal(18, 6)
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([date])
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            NotificationType
+  title           String
+  message         String
+  
+  // Status
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  
+  // Links
+  poolId          String?
+  txHash          String?
+  metadata        Json?
+  
+  // Priority
+  priority        NotificationPriority @default(NORMAL)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+// ============================================================================
+// FIAT TRANSACTIONS
+// ============================================================================
+
+model FiatTransaction {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  // Transaction details
+  type            FiatTxType
+  reference       String   @unique
+  
+  // Amounts
+  fiatAmount      Decimal  @db.Decimal(18, 2)
+  fiatCurrency    String   // NGN, GHS, KES, etc.
+  cryptoAmount    Decimal? @db.Decimal(18, 6)
+  cryptoAsset     String?  // USDC, USDT, etc.
+  exchangeRate    Decimal? @db.Decimal(18, 6)
+  
+  // Provider (Blockradar)
+  provider        String   @default("BLOCKRADAR")
+  providerTxId    String?
+  providerFee     Decimal? @db.Decimal(18, 2)
+  
+  // Bank details (for withdrawals)
+  bankAccountId   String?
+  
+  // Status
+  status          FiatTxStatus @default(PENDING)
+  failureReason   String?
+  
+  // Metadata
+  metadata        Json?
+  
+  // Timestamps
+  initiatedAt     DateTime @default(now())
+  completedAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, type])
+  @@index([reference])
+  @@index([status, initiatedAt])
+}
+
+// ============================================================================
+// COMPLIANCE & AUDIT
+// ============================================================================
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  action          String
+  entity          String   // User, Pool, Transaction, etc.
+  entityId        String
+  
+  // Changes
+  changes         Json?    // Before/after state
+  
+  // Request metadata
+  ipAddress       String?
+  userAgent       String?
+  
+  // Result
+  success         Boolean  @default(true)
+  errorMessage    String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([action, createdAt])
+}
+
+model ComplianceAlert {
+  id              String   @id @default(uuid())
+  userId          String?
+  
+  alertType       ComplianceAlertType
+  severity        Severity
+  
+  description     String
+  metadata        Json?
+  
+  // Status
+  status          AlertStatus @default(OPEN)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status, severity])
+  @@index([alertType, createdAt])
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserType {
+  REGULAR_USER
+  ADMIN
+  SPV_MANAGER
+  OPERATOR
+  VERIFIER
+  SUPER_ADMIN
+}
+
+enum KYCStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum UserRegion {
+  NIGERIA
+  GHANA
+  KENYA
+  SOUTH_AFRICA
+  UNITED_KINGDOM
+  UNITED_STATES
+  CANADA
+  EUROPE
+  OTHER
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NetWorthRange {
+  UNDER_10K
+  FROM_10K_TO_50K
+  FROM_50K_TO_100K
+  FROM_100K_TO_500K
+  FROM_500K_TO_1M
+  OVER_1M
+}
+
+enum DocumentType {
+  GOVERNMENT_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  PROOF_OF_ADDRESS
+  BVN
+  GHANA_CARD
+  TAX_ID
+  INCORPORATION_CERT
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum PoolType {
+  SINGLE_ASSET
+  STABLE_YIELD
+}
+
+enum PoolStatus {
+  FUNDING
+  FILLED
+  PENDING_INVESTMENT
+  INVESTED
+  MATURED
+  WITHDRAWN
+  EMERGENCY
+  CANCELLED
+}
+
+enum InstrumentType {
+  DISCOUNTED
+  INTEREST_BEARING
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  COUPON_CLAIM
+  MATURITY_CLAIM
+  REFUND
+  EMERGENCY_WITHDRAWAL
+  TRANSFER
+}
+
+enum TxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum WithdrawalStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SPVOpType {
+  WITHDRAW_FOR_INVESTMENT
+  PURCHASE_INSTRUMENT
+  RECORD_MATURITY
+  PAY_COUPON
+  RETURN_FUNDS
+  LIQUIDATE_INSTRUMENT
+}
+
+enum OperationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  FAILED
+}
+
+enum DistributionStatus {
+  RECEIVED
+  DISTRIBUTED
+  CLAIMED
+}
+
+enum NotificationType {
+  DEPOSIT_CONFIRMED
+  WITHDRAWAL_COMPLETED
+  COUPON_AVAILABLE
+  COUPON_CLAIMED
+  POOL_MATURED
+  POOL_FILLED
+  POOL_EMERGENCY
+  KYC_APPROVED
+  KYC_REJECTED
+  WITHDRAWAL_QUEUED
+  WITHDRAWAL_PROCESSED
+  EMERGENCY_ALERT
+  FIAT_DEPOSIT_COMPLETED
+  FIAT_WITHDRAWAL_COMPLETED
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum FiatTxType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum FiatTxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum IndexerStatus {
+  STOPPED
+  RUNNING
+  SYNCING
+  ERROR
+}
+
+enum ComplianceAlertType {
+  LARGE_TRANSACTION
+  SUSPICIOUS_ACTIVITY
+  RAPID_DEPOSITS
+  RAPID_WITHDRAWALS
+  KYC_MISMATCH
+  SANCTIONS_LIST
+  PEP_DETECTED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
