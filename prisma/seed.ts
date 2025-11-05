@@ -422,8 +422,10 @@ async function main() {
   // ============================================================================
   console.log('📝 Creating transactions...');
   await Promise.all([
-    prisma.transaction.create({
-      data: {
+    prisma.transaction.upsert({
+      where: { txHash: '0xtxhash111111111111111111111111111111111111111111111111111111111111' },
+      update: {},
+      create: {
         userId: users[0].id,
         poolId: pool1.id,
         type: 'DEPOSIT',
@@ -441,8 +443,10 @@ async function main() {
         timestamp: new Date('2025-11-01T14:22:00Z'),
       },
     }),
-    prisma.transaction.create({
-      data: {
+    prisma.transaction.upsert({
+      where: { txHash: '0xtxhash222222222222222222222222222222222222222222222222222222222222' },
+      update: {},
+      create: {
         userId: users[0].id,
         poolId: pool3.id,
         type: 'DEPOSIT',
@@ -460,8 +464,10 @@ async function main() {
         timestamp: new Date('2025-10-15T10:00:00Z'),
       },
     }),
-    prisma.transaction.create({
-      data: {
+    prisma.transaction.upsert({
+      where: { txHash: '0xtxhash333333333333333333333333333333333333333333333333333333333333' },
+      update: {},
+      create: {
         userId: users[1].id,
         poolId: pool2.id,
         type: 'DEPOSIT',

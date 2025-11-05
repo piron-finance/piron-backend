@@ -5,6 +5,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Set global API prefix
+  app.setGlobalPrefix('api/v1');
+
   // Enable validation globally
   app.useGlobalPipes(
     new ValidationPipe({
@@ -28,11 +31,13 @@ async function bootstrap() {
 
   console.log(`🚀 Piron Backend running on: http://localhost:${port}`);
   console.log(`📊 Available routes:`);
-  console.log(`   GET  /pools`);
-  console.log(`   GET  /pools/featured`);
-  console.log(`   GET  /pools/:poolAddress`);
-  console.log(`   GET  /pools/:poolAddress/stats`);
-  console.log(`   GET  /users (legacy)`);
+  console.log(`   GET  /api/v1/platform/metrics`);
+  console.log(`   GET  /api/v1/pools`);
+  console.log(`   GET  /api/v1/pools/featured`);
+  console.log(`   GET  /api/v1/pools/:poolAddress`);
+  console.log(`   GET  /api/v1/pools/:poolAddress/stats`);
+  console.log(`   GET  /api/v1/users/:walletAddress/positions`);
+  console.log(`   GET  /api/v1/users/:walletAddress/positions/:poolAddress`);
 }
 
 bootstrap();
