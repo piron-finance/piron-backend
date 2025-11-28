@@ -229,6 +229,9 @@ model Pool {
   maturityDate    DateTime?
   discountRate    Int?                 // Basis points
   
+  // Stable Yield Pool specific
+  spvAddress      String?              // SPV wallet address for Stable Yield pools
+  
   // Status
   status          PoolStatus @default(FUNDING)
   isActive        Boolean  @default(true)
@@ -842,6 +845,7 @@ enum PoolType {
 }
 
 enum PoolStatus {
+  PENDING_DEPLOYMENT
   FUNDING
   FILLED
   PENDING_INVESTMENT
@@ -971,4 +975,25 @@ enum AlertStatus {
   INVESTIGATING
   RESOLVED
   FALSE_POSITIVE
+}
+
+enum IndexerType {
+  DEPOSIT
+  WITHDRAWAL
+  POOL_STATUS
+}
+
+// ============================================================================
+// INDEXER STATE
+// ============================================================================
+
+model IndexerState {
+  id           String       @id @default(uuid())
+  chainId      Int
+  indexerType  IndexerType
+  lastBlock    Int          @default(0)
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([chainId, indexerType])
+  @@index([chainId, indexerType])
 }
