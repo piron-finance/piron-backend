@@ -84,7 +84,7 @@ export class PoolBuilderService {
       epochDuration: epochDuration,
       maturityDate: maturityDate,
       discountRate: params.discountRate || 0,
-      spvAddress: ethers.ZeroAddress, // TODO: Set actual SPV address when available
+      spvAddress: process.env.DEFAULT_SPV_ADDRESS || ethers.ZeroAddress,
       couponDates: [], // No coupons for now (used for interest-bearing bonds)
       couponRates: [], // No coupons for now
       minimumFundingThreshold: minInvestmentWei,

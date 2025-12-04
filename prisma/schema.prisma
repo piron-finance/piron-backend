@@ -231,6 +231,7 @@ model Pool {
   
   // Stable Yield Pool specific
   spvAddress      String?              // SPV wallet address for Stable Yield pools
+  projectedAPY    Decimal?  @db.Decimal(5, 2)
   
   // Status
   status          PoolStatus @default(FUNDING)

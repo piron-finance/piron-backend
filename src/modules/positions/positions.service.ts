@@ -53,7 +53,7 @@ export class PositionsService {
         totalDeposited: totalDeposited.toString(),
         totalReturn: totalReturn.toString(),
         totalReturnPercentage: totalReturnPercentage.toFixed(2),
-        unrealizedReturn: totalReturn.toString(), // TODO: Split realized vs unrealized
+        unrealizedReturn: totalReturn.toString(),
         realizedReturn: '0.00',
         positions: positions.map((pos) => ({
           id: pos.id,

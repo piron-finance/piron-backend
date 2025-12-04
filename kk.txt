@@ -1,0 +1,322 @@
+
+== Logs ==
+  === DEPLOYING UPGRADEABLE CONTRACTS ===
+  MockERC20 deployed at: 0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa
+  AccessManager deployed at: 0x05b326d12D802DF04b96Fa82335c5b9e7e22EA4b
+  TimelockController deployed at: 0xD4480D4C5e15CdEab11dbA064d4F610aeb51bC1D
+  UpgradeGuardian deployed at: 0x546a7adb0077bC6EA21c8dCf27E257FB58bF42ea
+  TimelockController guardian updated to UpgradeGuardian contract
+  PoolRegistry implementation deployed at: 0xb0B073cb15A2d1d35E415bc0A755C09EFe5b2efA
+  PoolRegistry proxy deployed at: 0x16308CeEB1Ee44Afc7c731B567D3135E1B2752e3
+  Manager implementation deployed at: 0x6B8e16B4D498252c2c36d9298269F931240FC3b4
+  Manager proxy deployed at: 0x056dAC51BF925e88d5d9eA3394D70b55A1691Da2
+  LiquidityPool implementation deployed at: 0xB7E719B77Fc95A70BB1E55e1eE0384A25eE6D451
+  PoolEscrow implementation deployed at: 0xC815f21F8194A68E45ED3eA07bd7C942D9D744BB
+  PoolFactory implementation deployed at: 0xb8521d267fC330772bd8b2A65137ef3482Bb8941
+  PoolFactory proxy deployed at: 0x4A7E6245CA1AaE0E0f159A8aF23b336542a30aF0
+  FeeManager deployed at: 0x10815459d81F88F3176FaAf81CF7be256FdFe94A
+  StableYieldManager implementation deployed at: 0x6B2070af04afc894e98Ddf414d5BFC52ceEE0466
+  StableYieldManager proxy deployed at: 0xE756E61e69cd090Cfe7bF0648c6f488c47629a80
+  StableYieldPool implementation deployed at: 0xDBe01d48171E9852b8A68755612F4672bE93BbaA
+  StableYieldEscrow implementation deployed at: 0x79dA3005E4A6854542e79D2A758E0665c293A858
+  ManagedPoolFactory implementation deployed at: 0x5c1241801D044571342E7a960a7B976D4cF363e0
+  ManagedPoolFactory proxy deployed at: 0x958b320E4cce5B6930b5695Bb9B817Ec01209D4a
+  === CONFIGURING UPGRADEABLE SYSTEM ===
+  FACTORY_ROLE granted to ManagedPoolFactory
+  POOL_CREATOR_ROLE granted to StableYieldManager
+  OPERATOR_ROLE granted to StableYieldManager
+  Deployment finalized - future role grants require 24h timelock
+  PoolFactory registered in PoolRegistry
+  POOL_CREATOR_ROLE granted to StableYieldManager on PoolRegistry
+  ManagedPoolFactory registered in StableYieldManager
+  SPV_ROLE granted to admin on StableYieldManager
+  Managers registered in FeeManager
+  Admin roles (POOL_CREATOR, ASSET_MANAGER) granted at deployment
+  USDC approved as valid asset
+  cNGN approved as valid asset
+  NOTE: Add USDT approval before mainnet deployment
+  Default fee configuration set
+  Upgradeable system configuration complete!
+  === VERIFYING UPGRADEABLE DEPLOYMENT ===
+  AccessManager roles verified (admin, factories, and managers)
+  All upgradeable contracts verified successfully!
+  === UPGRADEABLE DEPLOYMENT SUMMARY ===
+  Admin Address: 0xFeed27E8413d416Df4B26bf7BE275Bf92997413c
+  Proposer Address: 0xFeed27E8413d416Df4B26bf7BE275Bf92997413c
+  Executor Address: 0xFeed27E8413d416Df4B26bf7BE275Bf92997413c
+  Guardian Address: 0xFeed27E8413d416Df4B26bf7BE275Bf92997413c
+  SPV Address: 0xFeed27E8413d416Df4B26bf7BE275Bf92997413c
+  
+  === GOVERNANCE CONTRACTS ===
+  AccessManager: 0x05b326d12D802DF04b96Fa82335c5b9e7e22EA4b
+  TimelockController: 0xD4480D4C5e15CdEab11dbA064d4F610aeb51bC1D
+  UpgradeGuardian: 0x546a7adb0077bC6EA21c8dCf27E257FB58bF42ea
+  
+  === CORE CONTRACTS (UPGRADEABLE) ===
+  Manager Proxy: 0x056dAC51BF925e88d5d9eA3394D70b55A1691Da2
+  Manager Implementation: 0x6B8e16B4D498252c2c36d9298269F931240FC3b4
+  PoolRegistry Proxy: 0x16308CeEB1Ee44Afc7c731B567D3135E1B2752e3
+  PoolRegistry Implementation: 0xb0B073cb15A2d1d35E415bc0A755C09EFe5b2efA
+  PoolFactory Proxy: 0x4A7E6245CA1AaE0E0f159A8aF23b336542a30aF0
+  PoolFactory Implementation: 0xb8521d267fC330772bd8b2A65137ef3482Bb8941
+  
+  === STABLE YIELD CONTRACTS (UPGRADEABLE) ===
+  StableYieldManager Proxy: 0xE756E61e69cd090Cfe7bF0648c6f488c47629a80
+  StableYieldManager Implementation: 0x6B2070af04afc894e98Ddf414d5BFC52ceEE0466
+  ManagedPoolFactory Proxy: 0x958b320E4cce5B6930b5695Bb9B817Ec01209D4a
+  ManagedPoolFactory Implementation: 0x5c1241801D044571342E7a960a7B976D4cF363e0
+  
+  === POOL IMPLEMENTATIONS ===
+  LiquidityPool Implementation: 0xB7E719B77Fc95A70BB1E55e1eE0384A25eE6D451
+  PoolEscrow Implementation: 0xC815f21F8194A68E45ED3eA07bd7C942D9D744BB
+  StableYieldPool Implementation: 0xDBe01d48171E9852b8A68755612F4672bE93BbaA
+  StableYieldEscrow Implementation: 0x79dA3005E4A6854542e79D2A758E0665c293A858
+  
+  === SUPPORTING CONTRACTS ===
+  FeeManager: 0x10815459d81F88F3176FaAf81CF7be256FdFe94A
+  Base Token: 0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa
+  
+  === DEPLOYMENT COMPLETE ===
+  System is ready for immediate use!
+  Admin has all necessary roles to create pools.
+  
+  Upgrade Delay: 72 hours
+  Multi-sig Security: Active
+  Emergency Guardian: Active
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 84532
+
+Estimated gas price: 0.08336891 gwei
+
+Estimated total gas used for script: 50684441
+
+Estimated amount required: 0.00422550660012931 ETH
+
+==========================
+
+##### base-sepolia
+✅  [Success] Hash: 0x33a8edb5e70fe09626c55aafc80d1c6f1e428021e708e578fca22a12fae9743b
+Contract Address: 0x16308CeEB1Ee44Afc7c731B567D3135E1B2752e3
+Block: 33922889
+Paid: 0.000013372371425322 ETH (318227 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x91f707a119ee6d39eec84e0c6da85160ef31ed0e5d0abc354eceb28eee5af290
+Contract Address: 0x6B8e16B4D498252c2c36d9298269F931240FC3b4
+Block: 33922889
+Paid: 0.000217537375004118 ETH (5176813 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xb90f66baf0e11a27befe6d5480913f61a527d2c61b93cdba846ed2ddcc613c95
+Contract Address: 0xB7E719B77Fc95A70BB1E55e1eE0384A25eE6D451
+Block: 33922889
+Paid: 0.000107019185964678 ETH (2546773 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xf5d35323083735998c6e2922fd8a95af5fa66ef091779d3b78373764f06a81bc
+Contract Address: 0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa
+Block: 33922889
+Paid: 0.000023340456205326 ETH (555441 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x7fd9006b9f1891be8d54b61171a2dfcd627a3ea3b77c1f5a9830ecb186a51e01
+Contract Address: 0xb0B073cb15A2d1d35E415bc0A755C09EFe5b2efA
+Block: 33922889
+Paid: 0.000159561171199638 ETH (3797133 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xeb549019306b9fb437963b318066332b5ab5c3be63f111e86dee839b64fa4ba2
+Contract Address: 0x056dAC51BF925e88d5d9eA3394D70b55A1691Da2
+Block: 33922889
+Paid: 0.000010753340288886 ETH (255901 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x1e03b464bc369480661605a36a8360d1fc29373a703e972563e2445d42cf261a
+Contract Address: 0x05b326d12D802DF04b96Fa82335c5b9e7e22EA4b
+Block: 33922889
+Paid: 0.000069855719918166 ETH (1662381 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x7d23887d5ae0665b9a03ff58a074d147ee04f1f759a47127789fb47b660ea6f9
+Block: 33922889
+Paid: 0.000001304809161786 ETH (31051 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x0c3a007ec432acfdd208705b2452b3a0de81741507270befe9a7204cbcce789c
+Contract Address: 0x546a7adb0077bC6EA21c8dCf27E257FB58bF42ea
+Block: 33922889
+Paid: 0.00004326048951471 ETH (1029485 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x1238bad7075ca9eb23cddac1a50b7e405ad69f196c8dada455e4479586ef68d6
+Contract Address: 0xD4480D4C5e15CdEab11dbA064d4F610aeb51bC1D
+Block: 33922889
+Paid: 0.000048231337158108 ETH (1147778 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x9178db391af526af2b474b5cf6318ef9d6dd8b2cbc1aef74d47a6f6c42927e38
+Contract Address: 0xDBe01d48171E9852b8A68755612F4672bE93BbaA
+Block: 33922889
+Paid: 0.000121173535222974 ETH (2883609 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xd0d2dc46d82e4b246e82df3b3f0fb04a2ab341ae800a5347853bbaa1a917e293
+Contract Address: 0x4A7E6245CA1AaE0E0f159A8aF23b336542a30aF0
+Block: 33922889
+Paid: 0.000013578780964554 ETH (323139 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xb06cdcff5ed101d754e691316d594e3c387e8dd59f9145039af105ada36f5205
+Contract Address: 0x10815459d81F88F3176FaAf81CF7be256FdFe94A
+Block: 33922889
+Paid: 0.000170404395447078 ETH (4055173 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xaf67155e79cc00d5d3899888f2a55d745a6460edd9b6fcf2eb802419c89913c0
+Contract Address: 0xC815f21F8194A68E45ED3eA07bd7C942D9D744BB
+Block: 33922889
+Paid: 0.000074757568281552 ETH (1779032 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xc454421ae65097c1c97eacfdad0221ba9992cce378e48289d7c2f17bf050ccc6
+Contract Address: 0xE756E61e69cd090Cfe7bF0648c6f488c47629a80
+Block: 33922889
+Paid: 0.000012746629477296 ETH (303336 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x216d39408f452a7d281c293415cabb57f273edea39c47ec3269a83ed847997a1
+Contract Address: 0x6B2070af04afc894e98Ddf414d5BFC52ceEE0466
+Block: 33922889
+Paid: 0.000212815756794186 ETH (5064451 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xcc7b102f0044a140c94125d67b663ef7fa7cc1716efba0ca9e54f6f77b37dcde
+Contract Address: 0x5c1241801D044571342E7a960a7B976D4cF363e0
+Block: 33922889
+Paid: 0.00008483528711853 ETH (2018855 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x36bf0fd2129ac194f612b8d4c93250ae6b1584fa31bce37050855ac9f3e7c623
+Contract Address: 0x79dA3005E4A6854542e79D2A758E0665c293A858
+Block: 33922889
+Paid: 0.000103512240829062 ETH (2463317 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xc2d037de50a9475d6edd8ff70b3aacd04a55eab7c8baabcf1da369bf91ce88e1
+Contract Address: 0xb8521d267fC330772bd8b2A65137ef3482Bb8941
+Block: 33922889
+Paid: 0.000086639185469538 ETH (2061783 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xc8048f9469a76205801cd95a04c543e24a4edaea2bfdda88a86c6e60b57786ae
+Contract Address: 0x958b320E4cce5B6930b5695Bb9B817Ec01209D4a
+Block: 33922889
+Paid: 0.00001376350741701 ETH (327535 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x324d93ff2e61dd7bce9a41a0726aea5ef645d34dc2f0b93c01af9a4d417c5718
+Block: 33922889
+Paid: 0.00000223512284034 ETH (53190 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x6455374e4e771c2afc6ad2f1f696c556ec47b7bc3aa16095cd068b4782aeda79
+Block: 33922889
+Paid: 0.000002271597490188 ETH (54058 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xf1e63f30c5bf46d506488e2497d04ea8d76c3ae826d4fee546f85ecf5c36c2ca
+Block: 33922889
+Paid: 0.000002359884632274 ETH (56159 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xf5afdb8df739986d5f991a66a05b09ab3688996f9443e4d076208339d9538be6
+Block: 33922889
+Paid: 0.000002271597490188 ETH (54058 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xee23d37f134e33f5e90370e7cd3bfc0efd6b5ff93a35a282370938ea5ff2f399
+Block: 33922889
+Paid: 0.000001950133122288 ETH (46408 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x66681ffb57591f1d03faf880bf28a6b306262297aeb1e5a41dea5357ae125328
+Block: 33922889
+Paid: 0.000002467669743864 ETH (58724 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x6b47010e34f16f225272a4b8e729f3a47304228796a6b5c26b14982856f63bdf
+Block: 33922889
+Paid: 0.000002360220804162 ETH (56167 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x2a59f286edae53b81c287c1320b00dfed492f1409aea6494020e3bc134afee72
+Block: 33922889
+Paid: 0.000004158320190102 ETH (98957 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xe31a33d5f1cf280f0396adddd4abfbc52d6212dfd0d8a4e8db9c4bde50c9628c
+Block: 33922889
+Paid: 0.00000241728598215 ETH (57525 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0xd672ba6a72b753fa1e637c41309f72f6c21f5dfbe5a53138f6ddc610decd5ea6
+Block: 33922889
+Paid: 0.000010047295281114 ETH (239099 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x667c5cd7624305d46b0dee17232a6135a52fa87b337ccd8ffed9635bce0001a0
+Block: 33922889
+Paid: 0.000010459946273634 ETH (248919 gas * 0.042021486 gwei)
+
+
+##### base-sepolia
+✅  [Success] Hash: 0x6e6791f757b6c88c2e6933cff76f36ea41d5a9cf3b4351c62e8d9d051aab4023
+Block: 33922889
+Paid: 0.00000276543399366 ETH (65810 gas * 0.042021486 gwei)
+
+✅ Sequence #1 on base-sepolia | Total Paid: 0.001634227650706482 ETH (38890287 gas * avg 0.042021486 gwei)
+                                                                                                        
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /Users/ernestnnamdi/Desktop/piron-pools/piron-pools/broadcast/DeployUpgradeable.s.sol/84532/run-latest.json
+
+Sensitive values saved to: /Users/ernestnnamdi/Desktop/piron-pools/piron-pools/cache/DeployUpgradeable.s.sol/84532/run-latest.json
+
+ernestnnamdi@Ernests-MacBook-Pro-2 piron-pools % 

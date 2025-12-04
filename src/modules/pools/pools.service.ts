@@ -65,7 +65,7 @@ export class PoolsService {
               totalShares: pool.analytics.totalShares.toString(),
               navPerShare: pool.analytics.navPerShare?.toString() || null,
               uniqueInvestors: pool.analytics.uniqueInvestors,
-              apy: pool.analytics.apy?.toString() || null,
+              apy: (pool.analytics.apy || pool.projectedAPY || 0).toString(),
             }
           : null,
         createdAt: pool.createdAt,
@@ -96,12 +96,10 @@ export class PoolsService {
   }
 
   async findOne(poolAddress: string): Promise<PoolDetailDto> {
-    const pool = await this.prisma.pool.findUnique({
+    const pool = await this.prisma.pool.findFirst({
       where: {
-        chainId_poolAddress: {
-          chainId: 84532, // TODO: Make this dynamic based on query param
-          poolAddress: poolAddress.toLowerCase(),
-        },
+        poolAddress: poolAddress.toLowerCase(),
+        isActive: true,
       },
       include: {
         analytics: true,
@@ -158,7 +156,7 @@ export class PoolsService {
             totalShares: pool.analytics.totalShares.toString(),
             navPerShare: pool.analytics.navPerShare?.toString() || null,
             uniqueInvestors: pool.analytics.uniqueInvestors,
-            apy: pool.analytics.apy?.toString() || null,
+            apy: (pool.analytics.apy || pool.projectedAPY || 0).toString(),
           }
         : null,
       createdAt: pool.createdAt,
@@ -223,7 +221,7 @@ export class PoolsService {
             totalShares: pool.analytics.totalShares.toString(),
             navPerShare: pool.analytics.navPerShare?.toString() || null,
             uniqueInvestors: pool.analytics.uniqueInvestors,
-            apy: pool.analytics.apy?.toString() || null,
+            apy: (pool.analytics.apy || pool.projectedAPY || 0).toString(),
           }
         : null,
       createdAt: pool.createdAt,
@@ -277,7 +275,7 @@ export class PoolsService {
               totalShares: pool.analytics.totalShares.toString(),
               navPerShare: pool.analytics.navPerShare?.toString() || null,
               uniqueInvestors: pool.analytics.uniqueInvestors,
-              apy: pool.analytics.apy?.toString() || null,
+              apy: (pool.analytics.apy || pool.projectedAPY || 0).toString(),
             }
           : null,
         createdAt: pool.createdAt,

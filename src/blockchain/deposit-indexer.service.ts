@@ -62,7 +62,8 @@ export class DepositIndexer implements OnModuleInit {
     }
 
     const fromBlock = lastCheckedBlock + 1;
-    const toBlock = currentBlock;
+    const maxBlockRange = parseInt(process.env.INDEXER_MAX_BLOCK_RANGE || '100', 10);
+    const toBlock = Math.min(currentBlock, fromBlock + maxBlockRange - 1);
 
     this.logger.debug(`Checking deposits from block ${fromBlock} to ${toBlock}`);
 
@@ -73,7 +74,12 @@ export class DepositIndexer implements OnModuleInit {
     await this.updateLastCheckedBlock(chainId, toBlock);
   }
 
-  private async indexPoolDeposits(chainId: number, pool: any, fromBlock: number, toBlock: number) {
+  private async indexPoolDeposits(
+    chainId: number,
+    pool: { poolAddress: string; poolType: string; assetDecimals: number; assetSymbol: string; name: string; id: string },
+    fromBlock: number,
+    toBlock: number,
+  ) {
     try {
       const poolABI = pool.poolType === 'STABLE_YIELD' ? StableYieldPoolABI : LiquidityPoolABI;
       const poolContract = this.blockchain.getContract(chainId, pool.poolAddress, poolABI);
@@ -89,7 +95,11 @@ export class DepositIndexer implements OnModuleInit {
     }
   }
 
-  private async handleDepositEvent(chainId: number, pool: any, event: ethers.EventLog) {
+  private async handleDepositEvent(
+    chainId: number,
+    pool: { poolAddress: string; poolType: string; assetDecimals: number; assetSymbol: string; name: string; id: string },
+    event: ethers.EventLog,
+  ) {
     const { sender, owner, assets, shares } = event.args;
 
     this.logger.log(
