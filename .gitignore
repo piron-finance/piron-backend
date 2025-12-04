@@ -37,11 +37,8 @@ logs/
 uploads/
 
 # Prisma
-prisma/migrations/
+# Note: Keep migrations in git for deployment
 
-# Documentation (except README)
-*.md
-!README.md
-
-# Text files
-*.txt
+# Temporary files
+*.tmp
+*.temp

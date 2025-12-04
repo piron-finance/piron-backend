@@ -1,0 +1,313 @@
+===============================================================================
+FRONTEND INTEGRATION GUIDE - TVL & TRANSACTIONS
+===============================================================================
+Backend Port: http://localhost:3008/api/v1
+Date: 2025-11-26
+
+===============================================================================
+DIAGNOSIS SUMMARY
+===============================================================================
+
+✅ BACKEND IS FULLY FUNCTIONAL
+- All endpoints working correctly
+- TVL data is accurate (2,300)
+- Transactions indexed (2 deposits)
+- User positions tracked
+
+❌ FRONTEND CONFIGURATION ISSUE
+- Frontend likely calling wrong API URL
+- Or not displaying the data correctly
+
+===============================================================================
+1. API CONFIGURATION
+===============================================================================
+
+BACKEND URL: http://localhost:3008/api/v1
+
+Frontend .env file should have:
+```
+NEXT_PUBLIC_API_URL=http://localhost:3008/api/v1
+# OR
+VITE_API_URL=http://localhost:3008/api/v1
+# OR
+REACT_APP_API_URL=http://localhost:3008/api/v1
+```
+
+⚠️ Common Mistake: Using port 3000 instead of 3008
+
+===============================================================================
+2. POOL DETAILS WITH TVL
+===============================================================================
+
+Endpoint: GET /pools/:poolAddress
+
+Example:
+```bash
+curl http://localhost:3008/api/v1/pools/0x51E33dbf7Fa275Dc9A9e48c86D373AA7b75745A5
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "poolAddress": "0x51e33dbf7fa275dc9a9e48c86d373aa7b75745a5",
+  "name": "Piron Global Stable Yield Fund",
+  "poolType": "STABLE_YIELD",
+  "assetSymbol": "E20M",
+  "analytics": {
+    "totalValueLocked": "2300",        // ← THIS IS TVL
+    "totalShares": "2300.256527",
+    "navPerShare": null,
+    "uniqueInvestors": 2,              // ← INVESTOR COUNT
+    "apy": null
+  },
+  "status": "FUNDING",
+  "isActive": true,
+  ...
+}
+```
+
+Frontend Display:
+```typescript
+const pool = await fetch(`${API_URL}/pools/${poolAddress}`).then(r => r.json());
+
+// TVL
+const tvl = pool.analytics?.totalValueLocked || "0";
+
+// Investor Count
+const investors = pool.analytics?.uniqueInvestors || 0;
+
+// Net Flow (same as TVL for deposits-only)
+const netFlow = pool.analytics?.totalValueLocked || "0";
+```
+
+⚠️ IMPORTANT: Values are STRINGS not numbers
+- totalValueLocked: "2300" (string)
+- Parse as: parseFloat(tvl) or Number(tvl)
+
+===============================================================================
+3. TRANSACTION HISTORY - POOL TRANSACTIONS
+===============================================================================
+
+Endpoint: GET /pools/:poolAddress/transactions
+
+Parameters:
+- page (optional, default: 1)
+- limit (optional, default: 20)
+
+Example:
+```bash
+curl http://localhost:3008/api/v1/pools/0x51E33dbf7Fa275Dc9A9e48c86D373AA7b75745A5/transactions?page=1&limit=20
+```
+
+Response:
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "type": "DEPOSIT",                        // or WITHDRAWAL
+      "txHash": "0x16a13e5aa189cdce...",
+      "amount": "1300",
+      "shares": "1300.256527",
+      "timestamp": "2025-11-26T05:22:20.000Z",
+      "status": "CONFIRMED",
+      "pool": {
+        "name": "Piron Global Stable Yield Fund",
+        "poolAddress": "0x51e...",
+        "assetSymbol": "E20M"
+      }
+    },
+    {
+      "id": "uuid",
+      "type": "DEPOSIT",
+      "amount": "1000",
+      ...
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1
+  }
+}
+```
+
+Frontend Component Example:
+```typescript
+const { data: transactions } = await fetch(
+  `${API_URL}/pools/${poolAddress}/transactions?page=1&limit=20`
+).then(r => r.json());
+
+// Display each transaction
+transactions.data.map(tx => (
+  <TransactionRow>
+    <Type>{tx.type}</Type>
+    <Amount>{tx.amount} {tx.pool.assetSymbol}</Amount>
+    <Time>{new Date(tx.timestamp).toLocaleString()}</Time>
+    <Hash>
+      <a href={`https://sepolia.basescan.org/tx/${tx.txHash}`}>
+        {tx.txHash.substring(0, 10)}...
+      </a>
+    </Hash>
+    <Status>{tx.status}</Status>
+  </TransactionRow>
+));
+```
+
+===============================================================================
+4. TRANSACTION HISTORY - USER TRANSACTIONS
+===============================================================================
+
+Endpoint: GET /users/:walletAddress/transactions
+
+Parameters:
+- poolId (optional) - filter by specific pool
+- type (optional) - DEPOSIT, WITHDRAWAL, etc.
+- status (optional) - PENDING, CONFIRMED, FAILED
+- page (optional, default: 1)
+- limit (optional, default: 20)
+
+Example:
+```bash
+curl http://localhost:3008/api/v1/users/0x6e9150717c8a810ddbcb1aa1d459c399efbed2a5/transactions
+```
+
+Response: Same format as pool transactions
+
+===============================================================================
+5. USER POSITION (HOLDINGS)
+===============================================================================
+
+Endpoint: GET /users/:walletAddress/positions/:poolAddress
+
+Example:
+```bash
+curl http://localhost:3008/api/v1/users/0x6e9150717c8a810ddbcb1aa1d459c399efbed2a5/positions/0x51E33dbf7Fa275Dc9A9e48c86D373AA7b75745A5
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "userId": "uuid",
+  "poolId": "uuid",
+  "pool": {
+    "name": "Piron Global Stable Yield Fund",
+    "poolAddress": "0x51e...",
+    "assetSymbol": "E20M",
+    "poolType": "STABLE_YIELD",
+    "navPerShare": null
+  },
+  "totalShares": "1300.256527",
+  "totalDeposited": "1300",              // ← USER'S TOTAL DEPOSITS
+  "totalWithdrawn": "0",
+  "currentValue": "1300",                // ← CURRENT POSITION VALUE
+  "totalReturn": "0",
+  "totalReturnPercentage": "0.00",
+  "unrealizedReturn": "0",
+  "realizedReturn": "0",
+  "lastDepositTime": "2025-11-26T05:22:20.000Z",
+  "isActive": true
+}
+```
+
+Frontend Display:
+```typescript
+const position = await fetch(
+  `${API_URL}/users/${walletAddress}/positions/${poolAddress}`
+).then(r => r.json());
+
+// Display
+Holdings: {position.totalShares} shares
+Value: {position.currentValue} {position.pool.assetSymbol}
+Return: {position.totalReturnPercentage}%
+```
+
+===============================================================================
+6. ALL USER POSITIONS
+===============================================================================
+
+Endpoint: GET /users/:walletAddress/positions
+
+Response:
+```json
+{
+  "totalValue": "1300",               // ← TOTAL ACROSS ALL POOLS
+  "totalDeposited": "1300",
+  "totalReturn": "0",
+  "totalReturnPercentage": "0.00",
+  "positions": [
+    {
+      "pool": {
+        "name": "Piron Global Stable Yield Fund",
+        "poolAddress": "0x51e...",
+        "assetSymbol": "E20M",
+        "status": "FUNDING"
+      },
+      "totalShares": "1300.256527",
+      "totalDeposited": "1300",
+      "currentValue": "1300",
+      ...
+    }
+  ]
+}
+```
+
+===============================================================================
+7. TROUBLESHOOTING
+===============================================================================
+
+Problem: Frontend shows TVL = 0
+Solution:
+1. Check API URL is http://localhost:3008/api/v1 (not 3000)
+2. Check browser console for CORS errors
+3. Verify data parsing: analytics.totalValueLocked (string)
+4. Clear frontend cache: rm -rf .next or rm -rf dist
+5. Hard refresh browser: Cmd+Shift+R
+
+Problem: No transactions showing
+Solution:
+1. Check if calling /pools/:poolAddress/transactions
+2. Verify response has .data array
+3. Check pagination: data is in response.data not response
+
+Problem: User holdings not showing
+Solution:
+1. Call /users/:walletAddress/positions/:poolAddress
+2. Handle 404 if user has no position
+3. Parse string values to numbers for display
+
+===============================================================================
+8. QUICK TEST COMMANDS
+===============================================================================
+
+Test Backend is Running:
+```bash
+curl http://localhost:3008/api/v1/pools
+```
+
+Test Pool TVL:
+```bash
+curl http://localhost:3008/api/v1/pools/0x51E33dbf7Fa275Dc9A9e48c86D373AA7b75745A5 | grep totalValueLocked
+```
+
+Test Transactions:
+```bash
+curl http://localhost:3008/api/v1/pools/0x51E33dbf7Fa275Dc9A9e48c86D373AA7b75745A5/transactions
+```
+
+===============================================================================
+9. CORS CONFIGURATION
+===============================================================================
+
+Backend CORS is set to allow all origins: '*'
+
+If frontend still has CORS issues:
+1. Check if backend is actually running on 3008
+2. Verify no proxy blocking requests
+3. Check browser console for specific CORS error
+
+===============================================================================
+

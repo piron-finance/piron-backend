@@ -24,9 +24,16 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 Piron Backend running on: http://localhost:${port}`);
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    console.log(`🚀 Piron Backend running in PRODUCTION mode on port ${port}`);
+  } else {
+    console.log(`🚀 Piron Backend running on: http://localhost:${port}`);
+    console.log(`🌐 Network access: Change localhost to your Mac's IP address`);
+  }
   console.log(`\n📊 Public Routes:`);
   console.log(`   GET  /api/v1/platform/metrics`);
   console.log(`   GET  /api/v1/pools`);

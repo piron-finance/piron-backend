@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "PoolStatus" ADD VALUE 'PENDING_DEPLOYMENT';
