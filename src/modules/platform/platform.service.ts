@@ -7,38 +7,36 @@ export class PlatformService {
 
   async getMetrics() {
     try {
-      // Get all pool analytics
-      const poolAnalytics = await this.prisma.poolAnalytics.findMany({
+      // Get all pools with analytics
+      const pools = await this.prisma.pool.findMany({
+        where: {
+          isActive: true,
+        },
         include: {
-          pool: {
-            select: {
-              isActive: true,
-              status: true,
-            },
-          },
+          analytics: true,
         },
       });
 
       // Calculate platform-wide metrics
-      const totalValueLocked = poolAnalytics.reduce(
-        (sum, p) => sum + Number(p.totalValueLocked),
+      const totalValueLocked = pools.reduce(
+        (sum, p) => sum + Number(p.analytics?.totalValueLocked || 0),
         0,
       );
 
       // Calculate 24h net flows
-      const netFlows24h = poolAnalytics.reduce((sum, p) => sum + Number(p.volume24h), 0);
+      const netFlows24h = pools.reduce((sum, p) => sum + Number(p.analytics?.volume24h || 0), 0);
 
-      // Calculate weighted average APY
+      // Calculate weighted average APY (using same fallback logic as pools/positions)
       // weightedAPY = Σ(poolAPY * poolTVL) / Σ(poolTVL)
-      const weightedAPYSum = poolAnalytics.reduce((sum, p) => {
-        const apy = Number(p.apy || 0);
-        const tvl = Number(p.totalValueLocked);
+      const weightedAPYSum = pools.reduce((sum, p) => {
+        const apy = Number(p.analytics?.apy || p.projectedAPY || 0);
+        const tvl = Number(p.analytics?.totalValueLocked || 0);
         return sum + apy * tvl;
       }, 0);
       const averageAPY = totalValueLocked > 0 ? weightedAPYSum / totalValueLocked : 0;
 
-      // Count active pools
-      const activePools = poolAnalytics.filter((p) => p.pool.isActive).length;
+      // Count active pools (all pools are already filtered by isActive)
+      const activePools = pools.filter((p) => p.analytics !== null).length;
 
       // Get total user count
       const totalUsers = await this.prisma.user.count({

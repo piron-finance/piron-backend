@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsDateString, IsOptional, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsDateString, IsOptional, Min, IsInt } from 'class-validator';
 
 export class PausePoolDto {
   @IsString()
@@ -32,5 +32,41 @@ export class ProcessMaturityDto {
   @IsString()
   @IsNotEmpty()
   poolAddress: string;
+}
+
+// ===== NEW POOL OPERATIONS =====
+
+export class CloseEpochDto {
+  @IsString()
+  @IsNotEmpty()
+  poolAddress: string;
+
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
+
+export class CancelPoolDto {
+  @IsString()
+  @IsNotEmpty()
+  poolAddress: string;
+
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+}
+
+export class DistributeCouponDto {
+  @IsString()
+  @IsNotEmpty()
+  poolAddress: string;
+
+  @IsNumber()
+  @Min(0)
+  couponId: number;
+
+  @IsString()
+  @IsNotEmpty()
+  amount: string;
 }
 

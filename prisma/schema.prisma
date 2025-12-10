@@ -998,3 +998,47 @@ model IndexerState {
   @@unique([chainId, indexerType])
   @@index([chainId, indexerType])
 }
+
+// ============================================================================
+// TREASURY & FEE TRACKING
+// ============================================================================
+
+model TreasuryTransaction {
+  id          String   @id @default(uuid())
+  type        TreasuryTxType
+  asset       String
+  amount      Decimal  @db.Decimal(18, 6)
+  recipient   String?
+  txHash      String?
+  executedBy  String
+  reason      String?
+  createdAt   DateTime @default(now())
+  
+  @@index([type, createdAt])
+  @@index([asset])
+}
+
+enum TreasuryTxType {
+  FEE_COLLECTION
+  WITHDRAWAL
+  PROTOCOL_REVENUE
+}
+
+// ============================================================================
+// EMERGENCY ACTIONS
+// ============================================================================
+
+model EmergencyAction {
+  id            String   @id @default(uuid())
+  action        String
+  reason        String
+  poolAddress   String?
+  executedBy    String
+  txHash        String?
+  resolvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@index([createdAt])
+  @@index([poolAddress])
+}
+

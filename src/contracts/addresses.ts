@@ -86,15 +86,3 @@ export function getNetworkConfig(chainId: ChainId) {
   if (chainId === 8453) return NETWORKS.BASE_MAINNET;
   throw new Error(`Unsupported chain ${chainId}`);
 }
-
-// 1. Frontend → POST /api/v1/admin/pools/create
-// 2. Backend validates DTO
-// 3. Backend calls PoolCreationValidator.validate()
-// 4. ⚠️  HANGS HERE → blockchain.isAssetApproved() (RPC call to Base Sepolia)
-// 5. (Should) Fetch asset symbol & decimals from ERC20 contract
-// 6. (Should) Create pool record in DB with PENDING_DEPLOYMENT status
-// 7. (Should) Build unsigned transaction data
-// 8. (Should) Return {poolId, pool, transaction} to frontend
-// 9. Frontend signs & sends transaction
-// 10. Frontend calls /api/v1/admin/pools/confirm-deployment
-// 11. PoolCreationWatcher auto-detects deployment → updates pool to FUNDING
