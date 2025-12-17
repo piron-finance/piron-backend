@@ -1,0 +1,26 @@
+{
+  "base-sepolia": {
+    "PoolFactory": {
+      "address": "0x4A7E6245CA1AaE0E0f159A8aF23b336542a30aF0",
+      "startBlock": 33922889
+    },
+    "ManagedPoolFactory": {
+      "address": "0x958b320E4cce5B6930b5695Bb9B817Ec01209D4a",
+      "startBlock": 33922889
+    },
+    "Manager": {
+      "address": "0x056dAC51BF925e88d5d9eA3394D70b55A1691Da2",
+      "startBlock": 33922889
+    },
+    "StableYieldManager": {
+      "address": "0xE756E61e69cd090Cfe7bF0648c6f488c47629a80",
+      "startBlock": 33922889
+    },
+    "PoolRegistry": {
+      "address": "0x16308CeEB1Ee44Afc7c731B567D3135E1B2752e3",
+      "startBlock": 33922889
+    }
+  },
+  "_comment": "Deployed at block 33922889 on Base Sepolia"
+}
+

@@ -9,6 +9,7 @@ import LiquidityPoolABI from '../contracts/abis/LiquidityPool.json';
 import StableYieldPoolABI from '../contracts/abis/StableYieldPool.json';
 import PoolFactoryABI from '../contracts/abis/PoolFactory.json';
 import ManagedPoolFactoryABI from '../contracts/abis/ManagedPoolFactory.json';
+import AccessManagerABI from '../contracts/abis/AccessManager.json';
 import IERC20ABI from '../contracts/abis/IERC20.json';
 
 @Injectable()
@@ -91,6 +92,17 @@ export class BlockchainService {
       throw new Error(`PoolRegistry address not configured for chainId ${chainId}`);
     }
     return this.getContract(chainId, address, PoolRegistryABI);
+  }
+
+  /**
+   * Get AccessManager contract
+   */
+  getAccessManager(chainId: number): ethers.Contract {
+    const address = CONTRACT_ADDRESSES[chainId]?.accessManager;
+    if (!address) {
+      throw new Error(`AccessManager address not configured for chainId ${chainId}`);
+    }
+    return this.getContract(chainId, address, AccessManagerABI);
   }
 
   /**

@@ -1,7 +1,22 @@
 import { Controller, Post, Get, Delete, Body, Param, Query, Patch } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreatePoolDto, ConfirmPoolDeploymentDto } from './dtos/create-pool.dto';
-import { PausePoolDto, ApproveAssetDto } from './dtos/admin-operations.dto';
+import {
+  PausePoolDto,
+  ApproveAssetDto,
+  CloseEpochDto,
+  CancelPoolDto,
+  DistributeCouponDto,
+} from './dtos/admin-operations.dto';
+import { ProcessWithdrawalQueueDto, WithdrawalQueueQueryDto } from './dtos/withdrawal-queue.dto';
+import { GetRolePoolsDto } from './dtos/role-management.dto';
+import { CreateAssetDto, UpdateAssetDto, AssetQueryDto } from './dtos/asset-management.dto';
+import {
+  WithdrawTreasuryDto,
+  CollectFeesDto,
+  UpdateFeeConfigDto,
+  EmergencyActionDto,
+} from './dtos/treasury-fee.dto';
 import { UpdatePoolMetadataDto } from './dtos/update-pool-metadata.dto';
 
 @Controller('admin')
@@ -88,5 +103,267 @@ export class AdminController {
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
     );
+  }
+
+  /**
+   * Close epoch for a pool
+   * POST /api/v1/admin/pools/:poolAddress/close-epoch
+   */
+  @Post('pools/:poolAddress/close-epoch')
+  async closeEpoch(@Param('poolAddress') poolAddress: string, @Body() dto?: any) {
+    return this.adminService.closeEpoch({ poolAddress, ...dto });
+  }
+
+  /**
+   * Cancel a pool
+   * POST /api/v1/admin/pools/:poolAddress/cancel
+   */
+  @Post('pools/:poolAddress/cancel')
+  async cancelPool(@Param('poolAddress') poolAddress: string, @Body() dto: CancelPoolDto) {
+    return this.adminService.cancelPool({ ...dto, poolAddress });
+  }
+
+  /**
+   * Distribute coupon payment
+   * POST /api/v1/admin/pools/:poolAddress/distribute-coupons
+   */
+  @Post('pools/:poolAddress/distribute-coupons')
+  async distributeCoupon(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: DistributeCouponDto,
+  ) {
+    return this.adminService.distributeCoupon({ ...dto, poolAddress });
+  }
+
+  // ========== WITHDRAWAL QUEUES ==========
+
+  /**
+   * Get withdrawal queues
+   * GET /api/v1/admin/withdrawal-queues?poolId={}&status={}
+   */
+  @Get('withdrawal-queues')
+  async getWithdrawalQueues(@Query() query: WithdrawalQueueQueryDto) {
+    return this.adminService.getWithdrawalQueues(query);
+  }
+
+  /**
+   * Process withdrawal queue for a pool
+   * POST /api/v1/admin/withdrawal-queues/:poolAddress/process
+   */
+  @Post('withdrawal-queues/:poolAddress/process')
+  async processWithdrawalQueue(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: ProcessWithdrawalQueueDto,
+  ) {
+    return this.adminService.processWithdrawalQueue({ ...dto, poolAddress });
+  }
+
+  // ========== ROLE MANAGEMENT ==========
+
+  /**
+   * Get role metrics
+   * GET /api/v1/admin/roles/metrics
+   */
+  @Get('roles/metrics')
+  async getRoleMetrics() {
+    return this.adminService.getRoleMetrics();
+  }
+
+  /**
+   * Get pools for a specific role
+   * GET /api/v1/admin/roles/:roleName/pools?status={}&needsAction={}
+   */
+  @Get('roles/:roleName/pools')
+  async getRolePools(@Param('roleName') roleName: string, @Query() query: any) {
+    return this.adminService.getRolePools({ roleName, ...query });
+  }
+
+  // ========== ASSET MANAGEMENT ==========
+
+  /**
+   * Get all assets
+   * GET /api/v1/admin/assets?status={}&region={}
+   */
+  @Get('assets')
+  async getAssets(@Query() query: AssetQueryDto) {
+    return this.adminService.getAssets(query);
+  }
+
+  /**
+   * Create new asset
+   * POST /api/v1/admin/assets
+   */
+  @Post('assets')
+  async createAsset(@Body() dto: CreateAssetDto) {
+    return this.adminService.createAsset(dto);
+  }
+
+  /**
+   * Update asset metadata
+   * PUT /api/v1/admin/assets/:assetId
+   */
+  @Patch('assets/:assetId')
+  async updateAsset(@Param('assetId') assetId: string, @Body() dto: UpdateAssetDto) {
+    return this.adminService.updateAsset(assetId, dto);
+  }
+
+  /**
+   * Revoke/Delete asset
+   * DELETE /api/v1/admin/assets/:assetId
+   */
+  @Delete('assets/:assetId')
+  async deleteAsset(@Param('assetId') assetId: string) {
+    return this.adminService.deleteAsset(assetId);
+  }
+
+  // ========== TREASURY MANAGEMENT ==========
+
+  /**
+   * Get treasury overview
+   * GET /api/v1/admin/treasury
+   */
+  @Get('treasury')
+  async getTreasuryOverview() {
+    return this.adminService.getTreasuryOverview();
+  }
+
+  /**
+   * Withdraw from treasury
+   * POST /api/v1/admin/treasury/withdraw
+   */
+  @Post('treasury/withdraw')
+  async withdrawTreasury(@Body() dto: WithdrawTreasuryDto) {
+    return this.adminService.withdrawTreasury(dto);
+  }
+
+  // ========== FEE MANAGEMENT ==========
+
+  /**
+   * Get fee configuration and stats
+   * GET /api/v1/admin/fees
+   */
+  @Get('fees')
+  async getFees() {
+    return this.adminService.getFees();
+  }
+
+  /**
+   * Collect fees from a pool
+   * POST /api/v1/admin/fees/collect
+   */
+  @Post('fees/collect')
+  async collectFees(@Body() dto: CollectFeesDto) {
+    return this.adminService.collectFees(dto);
+  }
+
+  /**
+   * Update fee configuration
+   * PUT /api/v1/admin/fees/config
+   */
+  @Patch('fees/config')
+  async updateFeeConfig(@Body() dto: UpdateFeeConfigDto) {
+    return this.adminService.updateFeeConfig(dto);
+  }
+
+  // ========== EMERGENCY OPERATIONS ==========
+
+  /**
+   * Pause protocol
+   * POST /api/v1/admin/emergency/pause-protocol
+   */
+  @Post('emergency/pause-protocol')
+  async pauseProtocol(@Body() dto: { reason: string }) {
+    return this.adminService.executeEmergencyAction({
+      action: 'PAUSE',
+      reason: dto.reason,
+    });
+  }
+
+  /**
+   * Unpause protocol
+   * POST /api/v1/admin/emergency/unpause-protocol
+   */
+  @Post('emergency/unpause-protocol')
+  async unpauseProtocol(@Body() dto: { reason: string }) {
+    return this.adminService.executeEmergencyAction({
+      action: 'UNPAUSE',
+      reason: dto.reason,
+    });
+  }
+
+  /**
+   * Force close epoch
+   * POST /api/v1/admin/emergency/force-close-epoch
+   */
+  @Post('emergency/force-close-epoch')
+  async forceCloseEpoch(@Body() dto: { poolAddress: string; reason: string }) {
+    return this.adminService.executeEmergencyAction({
+      action: 'FORCE_CLOSE_EPOCH',
+      poolAddress: dto.poolAddress,
+      reason: dto.reason,
+    });
+  }
+
+  // ========== SYSTEM STATUS ==========
+
+  /**
+   * Get system status
+   * GET /api/v1/admin/system/status
+   */
+  @Get('system/status')
+  async getSystemStatus() {
+    return this.adminService.getSystemStatus();
+  }
+
+  // ========== STABLE YIELD SPECIFIC: SPV FUND MANAGEMENT ==========
+
+  /**
+   * Allocate funds from escrow to SPV for instrument purchases
+   * POST /api/v1/admin/pools/:poolAddress/allocate-to-spv
+   */
+  @Post('pools/:poolAddress/allocate-to-spv')
+  async allocateToSPV(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { spvAddress: string; amount: string },
+  ) {
+    return this.adminService.allocateToSPV({
+      poolAddress,
+      spvAddress: body.spvAddress,
+      amount: body.amount,
+    });
+  }
+
+  /**
+   * Rebalance pool reserves to maintain target ratio
+   * POST /api/v1/admin/pools/:poolAddress/rebalance-reserves
+   */
+  @Post('pools/:poolAddress/rebalance-reserves')
+  async rebalancePoolReserves(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { action: 0 | 1; amount: string },
+  ) {
+    return this.adminService.rebalancePoolReserves({
+      poolAddress,
+      action: body.action,
+      amount: body.amount,
+    });
+  }
+
+  /**
+   * GET /admin/pools/:poolAddress/detail
+   * Get comprehensive pool detail for admin (main dashboard)
+   */
+  @Get('pools/:poolAddress/detail')
+  async getAdminPoolDetail(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.getAdminPoolDetail(poolAddress);
+  }
+
+  /**
+   * POST /admin/pools/:poolAddress/close
+   * Soft close a pool (orderly wind-down)
+   */
+  @Post('pools/:poolAddress/close')
+  async closePool(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.closePool(poolAddress);
   }
 }

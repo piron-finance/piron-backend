@@ -62,10 +62,10 @@ export class DepositIndexer implements OnModuleInit {
     }
 
     const fromBlock = lastCheckedBlock + 1;
-    const maxBlockRange = parseInt(process.env.INDEXER_MAX_BLOCK_RANGE || '100', 10);
+    const maxBlockRange = parseInt(process.env.INDEXER_MAX_BLOCK_RANGE || '250', 10);
     const toBlock = Math.min(currentBlock, fromBlock + maxBlockRange - 1);
 
-    this.logger.debug(`Checking deposits from block ${fromBlock} to ${toBlock}`);
+    this.logger.debug(`Checking deposits from block ${fromBlock} to ${toBlock} (range: ${toBlock - fromBlock + 1})`);
 
     for (const pool of pools) {
       await this.indexPoolDeposits(chainId, pool, fromBlock, toBlock);
