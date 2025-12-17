@@ -91,7 +91,7 @@ export class SubgraphWebhookController {
   }
 
   /**
-   * Verify Goldsky webhook signature
+   * Verify Goldsky webhook signature (supports multiple secrets)
    */
   private verifySignature(payload: string, signature: string): boolean {
     if (!signature) {
@@ -99,22 +99,38 @@ export class SubgraphWebhookController {
       return false;
     }
 
-    const webhookSecret = process.env.GOLDSKY_WEBHOOK_SECRET;
-    if (!webhookSecret) {
+    const webhookSecrets = process.env.GOLDSKY_WEBHOOK_SECRET;
+    if (!webhookSecrets) {
       this.logger.warn('GOLDSKY_WEBHOOK_SECRET not configured, skipping verification');
       return true; // In dev, allow without signature
     }
 
-    try {
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(payload)
-        .digest('hex');
+    // Support comma-separated secrets for multiple webhooks
+    const secrets = webhookSecrets.split(',').map(s => s.trim());
 
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature),
-      );
+    try {
+      // Check signature against each secret
+      for (const secret of secrets) {
+        const expectedSignature = crypto
+          .createHmac('sha256', secret)
+          .update(payload)
+          .digest('hex');
+
+        try {
+          if (crypto.timingSafeEqual(
+            Buffer.from(signature),
+            Buffer.from(expectedSignature),
+          )) {
+            return true; // Valid signature found
+          }
+        } catch {
+          // Continue to next secret if buffers don't match
+          continue;
+        }
+      }
+      
+      this.logger.warn('Signature did not match any configured secrets');
+      return false;
     } catch (error) {
       this.logger.error(`Signature verification error: ${error.message}`);
       return false;
