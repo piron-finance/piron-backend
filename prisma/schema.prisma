@@ -272,6 +272,7 @@ model Pool {
   withdrawalRequests  WithdrawalRequest[]
   spvOperations       SPVOperation[]
   navHistory          NAVHistory[]
+  spvPreferences      SPVPreference[]
   
   @@unique([chainId, poolAddress])
   @@index([poolType, status])
@@ -363,6 +364,35 @@ model Transaction {
   @@index([txHash])
   @@index([chainId, blockNumber])
   @@index([status, createdAt])
+}
+
+// ============================================================================
+// SPV PREFERENCES (Investment Thresholds & Alerts)
+// ============================================================================
+
+model SPVPreference {
+  id              String   @id @default(uuid())
+  
+  // SPV identity
+  spvAddress      String   // SPV wallet address
+  poolId          String?  @unique // Optional: specific to a pool (null = applies to all)
+  pool            Pool?    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  // Investment threshold settings
+  investmentThresholdEnabled Boolean @default(false)
+  minimumAmountToInvest      Decimal @default(0) @db.Decimal(18, 6) // Min $ to notify
+  notificationsEnabled       Boolean @default(true)
+  
+  // Notification preferences
+  emailNotifications  Boolean @default(true)
+  pushNotifications   Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([spvAddress])
+  @@index([spvAddress, poolId])
+  @@index([investmentThresholdEnabled])
 }
 
 // ============================================================================

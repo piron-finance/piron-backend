@@ -1,11 +1,22 @@
 import { Controller, Post, Get, Delete, Body, Param, Query, Patch } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreatePoolDto, ConfirmPoolDeploymentDto } from './dtos/create-pool.dto';
-import { PausePoolDto, ApproveAssetDto, CloseEpochDto, CancelPoolDto, DistributeCouponDto } from './dtos/admin-operations.dto';
+import {
+  PausePoolDto,
+  ApproveAssetDto,
+  CloseEpochDto,
+  CancelPoolDto,
+  DistributeCouponDto,
+} from './dtos/admin-operations.dto';
 import { ProcessWithdrawalQueueDto, WithdrawalQueueQueryDto } from './dtos/withdrawal-queue.dto';
 import { GetRolePoolsDto } from './dtos/role-management.dto';
 import { CreateAssetDto, UpdateAssetDto, AssetQueryDto } from './dtos/asset-management.dto';
-import { WithdrawTreasuryDto, CollectFeesDto, UpdateFeeConfigDto, EmergencyActionDto } from './dtos/treasury-fee.dto';
+import {
+  WithdrawTreasuryDto,
+  CollectFeesDto,
+  UpdateFeeConfigDto,
+  EmergencyActionDto,
+} from './dtos/treasury-fee.dto';
 import { UpdatePoolMetadataDto } from './dtos/update-pool-metadata.dto';
 
 @Controller('admin')
@@ -117,7 +128,10 @@ export class AdminController {
    * POST /api/v1/admin/pools/:poolAddress/distribute-coupons
    */
   @Post('pools/:poolAddress/distribute-coupons')
-  async distributeCoupon(@Param('poolAddress') poolAddress: string, @Body() dto: DistributeCouponDto) {
+  async distributeCoupon(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: DistributeCouponDto,
+  ) {
     return this.adminService.distributeCoupon({ ...dto, poolAddress });
   }
 
@@ -299,5 +313,57 @@ export class AdminController {
   @Get('system/status')
   async getSystemStatus() {
     return this.adminService.getSystemStatus();
+  }
+
+  // ========== STABLE YIELD SPECIFIC: SPV FUND MANAGEMENT ==========
+
+  /**
+   * Allocate funds from escrow to SPV for instrument purchases
+   * POST /api/v1/admin/pools/:poolAddress/allocate-to-spv
+   */
+  @Post('pools/:poolAddress/allocate-to-spv')
+  async allocateToSPV(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { spvAddress: string; amount: string },
+  ) {
+    return this.adminService.allocateToSPV({
+      poolAddress,
+      spvAddress: body.spvAddress,
+      amount: body.amount,
+    });
+  }
+
+  /**
+   * Rebalance pool reserves to maintain target ratio
+   * POST /api/v1/admin/pools/:poolAddress/rebalance-reserves
+   */
+  @Post('pools/:poolAddress/rebalance-reserves')
+  async rebalancePoolReserves(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { action: 0 | 1; amount: string },
+  ) {
+    return this.adminService.rebalancePoolReserves({
+      poolAddress,
+      action: body.action,
+      amount: body.amount,
+    });
+  }
+
+  /**
+   * GET /admin/pools/:poolAddress/detail
+   * Get comprehensive pool detail for admin (main dashboard)
+   */
+  @Get('pools/:poolAddress/detail')
+  async getAdminPoolDetail(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.getAdminPoolDetail(poolAddress);
+  }
+
+  /**
+   * POST /admin/pools/:poolAddress/close
+   * Soft close a pool (orderly wind-down)
+   */
+  @Post('pools/:poolAddress/close')
+  async closePool(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.closePool(poolAddress);
   }
 }

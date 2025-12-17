@@ -1,0 +1,21 @@
+{
+  "name": "piron-finance-subgraph",
+  "version": "1.0.0",
+  "description": "Goldsky subgraph for Piron Finance on Base Sepolia",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy:testnet": "graph deploy piron-finance-base-sepolia --node https://api.goldsky.com/api/public/project_<PROJECT_ID>/subgraphs",
+    "create:local": "graph create --node http://localhost:8020/ piron-finance-base-sepolia",
+    "deploy:local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 piron-finance-base-sepolia"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.67.0",
+    "@graphprotocol/graph-ts": "^0.32.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

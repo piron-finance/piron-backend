@@ -61,6 +61,18 @@ async function bootstrap() {
   console.log(`   GET   /api/v1/admin/analytics/overview`);
   console.log(`   GET   /api/v1/admin/activity`);
   console.log(`   DEL   /api/v1/admin/pools/:id`);
+  console.log(`\n📦 SPV Dashboard Routes:`);
+  console.log(`   GET  /api/v1/spv/investments/pending`);
+  console.log(`   POST /api/v1/spv/pools/:poolAddress/withdraw-funds`);
+  console.log(`   POST /api/v1/spv/investments/confirm`);
+  console.log(`   GET  /api/v1/spv/instruments`);
+  console.log(`   POST /api/v1/spv/instruments/batch-mature`);
+  console.log(`   POST /api/v1/spv/instruments/:id/record-coupon`);
+  console.log(`   GET  /api/v1/spv/coupons/schedule`);
+  console.log(`   POST /api/v1/spv/pools/:poolAddress/trigger-nav-update`);
+  console.log(`   GET  /api/v1/spv/pools/:poolAddress/liquidity-status`);
+  console.log(`   GET  /api/v1/spv/analytics/enhanced`);
+  console.log(`   GET  /api/v1/spv/fees/collectible`);
   console.log(`\n🏦 SPV Routes:`);
   console.log(`   POST /api/v1/spv/pools/:poolAddress/allocate`);
   console.log(`   POST /api/v1/spv/pools/:poolAddress/instruments/add`);
