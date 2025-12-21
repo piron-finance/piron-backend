@@ -10,7 +10,6 @@ import { AdminModule } from './modules/admin/admin.module';
 import { SpvModule } from './modules/spv/spv.module';
 import { DepositsModule } from './modules/deposits/deposits.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
-import { SubgraphWebhookModule } from './modules/subgraph-webhook/subgraph-webhook.module';
 
 @Module({
   imports: [
@@ -35,7 +34,6 @@ import { SubgraphWebhookModule } from './modules/subgraph-webhook/subgraph-webho
     AdminModule,
     SpvModule,
     DepositsModule,
-    SubgraphWebhookModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],

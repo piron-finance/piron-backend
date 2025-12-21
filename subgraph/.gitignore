@@ -1,8 +1,0 @@
-node_modules/
-dist/
-build/
-generated/
-abis/
-*.log
-.DS_Store
-
