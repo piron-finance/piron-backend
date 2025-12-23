@@ -67,44 +67,6 @@ DIRECT_URL="postgresql://postgres.xyz:[PASSWORD]@aws-0-region.pooler.supabase.co
 - **Real-time**: Socket.io (coming in Phase 5)
 - **Auth**: JWT + SIWE (Sign-In With Ethereum)
 
-## 🎯 Current Status
-
-### ✅ Completed
-
-- ✅ NestJS project setup with TypeScript
-- ✅ Prisma ORM with PostgreSQL (Supabase)
-- ✅ Complete database schema (20 models)
-- ✅ Pool module with 4 endpoints
-  - `GET /pools` - List all pools with filters
-  - `GET /pools/featured` - Get featured pools
-  - `GET /pools/:poolAddress` - Get pool details
-  - `GET /pools/:poolAddress/stats` - Get pool analytics
-- ✅ DTOs with validation (class-validator)
-- ✅ Database seeding with dummy data
-- ✅ ESLint + Prettier
-- ✅ Environment configuration
-
-### 🚧 In Progress
-
-**Next Up:**
-
-- [ ] Simple JWT authentication
-- [ ] Blockchain providers (ethers.js)
-- [ ] User positions & portfolio endpoints
-- [ ] Transaction history module
-- [ ] Blockchain event indexer
-
-### 📊 What's Seeded
-
-After running `npm run prisma:seed`, you'll have:
-
-- 3 Pools (Nigerian T-Bill, UK Gilt Bond, Stable Yield Fund)
-- 3 Users (Alice, Bob, Admin) with positions
-- Pool analytics (TVL, APY, investors)
-- Sample transactions
-- 2 Networks (Base Sepolia, Base Mainnet)
-- 2 Assets (USDC, cNGN)
-
 ## 🗂️ Project Structure
 
 ```
@@ -186,35 +148,6 @@ BASE_SEPOLIA_CHAIN_ID=84532
 ```
 
 **Note**: Special characters in passwords must be URL-encoded (e.g., `@` → `%40`).
-
-## 🎯 Roadmap
-
-### Phase 1-2 (Week 1): Core + Indexer ← WE ARE HERE
-
-- Complete database schema
-- Pool browsing with live blockchain data
-- Blockchain event indexer
-- Auto-sync positions and transactions
-
-### Phase 3 (Week 2): Auth + KYC
-
-- SIWE wallet authentication
-- KYC document uploads
-- Notification system
-
-### Phase 4 (Week 3): Admin + SPV
-
-- Admin dashboard APIs
-- SPV operations module
-- Analytics and reporting
-
-### Phase 5 (Week 4): Production
-
-- WebSocket real-time updates
-- Performance optimization
-- API documentation
-- Testing
-- Deployment
 
 ## 📖 Key Concepts
 
