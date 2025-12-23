@@ -43,3 +43,5 @@ uploads/
 *.tmp
 *.temp
 admin-need.md
+
+scripts/

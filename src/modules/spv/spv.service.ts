@@ -9,7 +9,6 @@ import { TriggerNAVUpdateDto } from './dtos/spv-nav.dto';
 import { InstrumentsQueryDto } from './dtos/spv-instruments.dto';
 import { SetInvestmentThresholdDto, GetAlertsQueryDto } from './dtos/spv-preferences.dto';
 import { ethers } from 'ethers';
-import StableYieldManagerABI from '../../contracts/abis/StableYieldManager.json';
 import { CONTRACT_ADDRESSES } from '../../contracts/addresses';
 import { OperationStatus } from '@prisma/client';
 
@@ -56,10 +55,6 @@ export class SpvService {
       return false;
     }
   }
-
-  // ❌ REMOVED: allocateToSPV moved to admin.service.ts
-  // Reason: Contract requires OPERATOR_ROLE, not SPV_ROLE
-  // Use: POST /admin/pools/:poolAddress/allocate-to-spv instead
 
   async addInstrument(dto: AddInstrumentDto, chainId = 84532) {
     const pool = await this.prisma.pool.findFirst({
@@ -361,12 +356,6 @@ export class SpvService {
     return pool;
   }
 
-  // ========== PHASE 1: INVESTMENT FLOW ==========
-
-  /**
-   * Get pools pending SPV investment
-   * Only applies to STABLE_YIELD pools in FILLED/PENDING_INVESTMENT status
-   */
   async getPendingInvestments(chainId = 84532) {
     const pools = await this.prisma.pool.findMany({
       where: {
@@ -446,10 +435,6 @@ export class SpvService {
     };
   }
 
-  /**
-   * Withdraw funds from escrow for SPV investment
-   * Enhanced version of allocateToSPV with better validation
-   */
   async withdrawFunds(dto: WithdrawFundsDto, chainId = 84532) {
     const pool = await this.prisma.pool.findFirst({
       where: {
@@ -590,11 +575,6 @@ export class SpvService {
     };
   }
 
-  // ========== PHASE 2: INSTRUMENT & COUPON MANAGEMENT ==========
-
-  /**
-   * Get enhanced instruments portfolio with filters
-   */
   async getInstruments(query: InstrumentsQueryDto) {
     const where: any = {};
 
@@ -1608,8 +1588,6 @@ export class SpvService {
     };
   }
 
-  // ========== ENHANCED POOL DETAIL (SPV DASHBOARD) ==========
-
   /**
    * Get comprehensive pool detail for SPV
    * This is the main dashboard for SPV to manage a pool
@@ -1685,7 +1663,6 @@ export class SpvService {
       // This will revert if pool is not registered in contract (poolExists modifier)
       reserveStatus = await stableYieldManager.getReserveStatus(pool.poolAddress);
 
-      // Check if contract returned valid data
       if (!reserveStatus) {
         throw new Error('No reserve status returned from contract');
       }
