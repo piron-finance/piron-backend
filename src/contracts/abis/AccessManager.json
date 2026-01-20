@@ -2,237 +2,74 @@
   {
     "type": "constructor",
     "inputs": [
-      {
-        "name": "admin",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "spv",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "operator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "emergency",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "multisigAdmin",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "admin", "type": "address", "internalType": "address" },
+      { "name": "spv", "type": "address", "internalType": "address" },
+      { "name": "operator", "type": "address", "internalType": "address" },
+      { "name": "emergency", "type": "address", "internalType": "address" },
+      { "name": "multisigAdmin", "type": "address", "internalType": "address" }
     ],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "ASSET_MANAGER_ROLE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "DEFAULT_ADMIN_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "EMERGENCY_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "EXECUTOR_ROLE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "FACTORY_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "MULTISIG_ADMIN_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "OPERATOR_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "ORACLE_ROLE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "POOL_CREATOR_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "ROLE_DELAY",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "SPV_ROLE",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "VERIFIER_ROLE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "addEmergencyPauser",
-    "inputs": [
-      {
-        "name": "pauser",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "canActWithDelay",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "cancelRoleProposal",
-    "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [{ "name": "proposalId", "type": "bytes32", "internalType": "bytes32" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -240,13 +77,7 @@
     "type": "function",
     "name": "deploymentComplete",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
@@ -259,20 +90,8 @@
   {
     "type": "function",
     "name": "emergencyPausers",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
@@ -285,13 +104,7 @@
   {
     "type": "function",
     "name": "executeRoleGrant",
-    "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [{ "name": "proposalId", "type": "bytes32", "internalType": "bytes32" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -305,76 +118,28 @@
   {
     "type": "function",
     "name": "getProposal",
-    "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [{ "name": "proposalId", "type": "bytes32", "internalType": "bytes32" }],
     "outputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "proposedAt",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "executed",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "cancelled",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "canExecute",
-        "type": "bool",
-        "internalType": "bool"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" },
+      { "name": "proposedAt", "type": "uint256", "internalType": "uint256" },
+      { "name": "executed", "type": "bool", "internalType": "bool" },
+      { "name": "cancelled", "type": "bool", "internalType": "bool" },
+      { "name": "canExecute", "type": "bool", "internalType": "bool" }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "getRoleAdmin",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [{ "name": "role", "type": "bytes32", "internalType": "bytes32" }],
+    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "grantFactoryRoleDuringDeployment",
-    "inputs": [
-      {
-        "name": "factory",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "factory", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -382,16 +147,18 @@
     "type": "function",
     "name": "grantRole",
     "inputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "grantRoleDuringDeployment",
+    "inputs": [
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -400,205 +167,70 @@
     "type": "function",
     "name": "hasRole",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" }
     ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "isAdmin",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "account", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "isMultisigAdmin",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "account", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "isOperator",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "isOracle",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "account", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "isPoolCreator",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "account", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "isSPV",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "isVerifier",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "account", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "paused",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "proposeRoleGrant",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" }
     ],
-    "outputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "outputs": [{ "name": "proposalId", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "removeEmergencyPauser",
+    "name": "renounceRole",
     "inputs": [
-      {
-        "name": "pauser",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "callerConfirmation", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -606,18 +238,7 @@
   {
     "type": "function",
     "name": "renounceRole",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -625,16 +246,8 @@
     "type": "function",
     "name": "revokeRole",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -642,96 +255,36 @@
   {
     "type": "function",
     "name": "roleGrantTime",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "roleProposals",
-    "inputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "outputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "proposedAt",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "executed",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
-        "name": "cancelled",
-        "type": "bool",
-        "internalType": "bool"
-      }
+      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "account", "type": "address", "internalType": "address" },
+      { "name": "proposedAt", "type": "uint256", "internalType": "uint256" },
+      { "name": "executed", "type": "bool", "internalType": "bool" },
+      { "name": "cancelled", "type": "bool", "internalType": "bool" }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "supportsInterface",
-    "inputs": [
-      {
-        "name": "interfaceId",
-        "type": "bytes4",
-        "internalType": "bytes4"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
+    "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
     "type": "event",
     "name": "EmergencyPause",
     "inputs": [
-      {
-        "name": "pauser",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pauser", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -739,18 +292,8 @@
     "type": "event",
     "name": "EmergencyUnpause",
     "inputs": [
-      {
-        "name": "unpauser",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "unpauser", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -758,12 +301,7 @@
     "type": "event",
     "name": "Paused",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "account", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -771,24 +309,14 @@
     "type": "event",
     "name": "RoleAdminChanged",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
+      { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
       {
         "name": "previousAdminRole",
         "type": "bytes32",
         "indexed": true,
         "internalType": "bytes32"
       },
-      {
-        "name": "newAdminRole",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
+      { "name": "newAdminRole", "type": "bytes32", "indexed": true, "internalType": "bytes32" }
     ],
     "anonymous": false
   },
@@ -796,24 +324,9 @@
     "type": "event",
     "name": "RoleGranted",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "account", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -821,12 +334,7 @@
     "type": "event",
     "name": "RoleProposalCancelled",
     "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
+      { "name": "proposalId", "type": "bytes32", "indexed": true, "internalType": "bytes32" }
     ],
     "anonymous": false
   },
@@ -834,24 +342,9 @@
     "type": "event",
     "name": "RoleProposalExecuted",
     "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "proposalId", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "account", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -859,30 +352,10 @@
     "type": "event",
     "name": "RoleProposed",
     "inputs": [
-      {
-        "name": "proposalId",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "proposalId", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "account", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -890,24 +363,9 @@
     "type": "event",
     "name": "RoleRevoked",
     "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "role", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
+      { "name": "account", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -915,44 +373,19 @@
     "type": "event",
     "name": "Unpaused",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "account", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
-  {
-    "type": "error",
-    "name": "AccessControlBadConfirmation",
-    "inputs": []
-  },
+  { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
   {
     "type": "error",
     "name": "AccessControlUnauthorizedAccount",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "neededRole",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
+      { "name": "account", "type": "address", "internalType": "address" },
+      { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
     ]
   },
-  {
-    "type": "error",
-    "name": "EnforcedPause",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "ExpectedPause",
-    "inputs": []
-  }
+  { "type": "error", "name": "EnforcedPause", "inputs": [] },
+  { "type": "error", "name": "ExpectedPause", "inputs": [] }
 ]

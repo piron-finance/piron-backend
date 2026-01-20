@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { BlockchainService } from './blockchain.service';
+import { BlockchainService, PoolType } from './blockchain.service';
 import { PoolBuilderService } from './pool-builder.service';
 import { PrismaService } from '../prisma.service';
+import { PoolType as PrismaPoolType } from '@prisma/client';
 
 @Injectable()
 export class PoolCreationWatcher implements OnModuleInit {
@@ -89,39 +90,48 @@ export class PoolCreationWatcher implements OnModuleInit {
    */
   private async checkPoolDeployment(chainId: number, pool: any) {
     try {
-      // Strategy: Query PoolRegistry for recent pools
-      // This is more efficient than scanning all blocks
       const registry = this.blockchain.getPoolRegistry(chainId);
 
-      // Get pool count
-      const totalPools =
-        pool.poolType === 'STABLE_YIELD'
-          ? await registry.getTotalStableYieldPools()
-          : await registry.getPoolCount();
+      // Determine which registry method to use based on pool type
+      let totalPools: bigint;
+      let getPoolAtIndex: (index: number) => Promise<string>;
+      let getPoolData: (poolAddress: string) => Promise<any>;
+
+      switch (pool.poolType as PrismaPoolType) {
+        case 'STABLE_YIELD':
+          totalPools = await registry.totalStableYieldPools();
+          getPoolAtIndex = (i) => registry.getStableYieldPoolAtIndex(i);
+          getPoolData = (addr) => registry.getStableYieldPoolData(addr);
+          break;
+        case 'LOCKED':
+          totalPools = await registry.totalLockedPools();
+          getPoolAtIndex = (i) => registry.getLockedPoolAtIndex(i);
+          getPoolData = (addr) => registry.getLockedPoolData(addr);
+          break;
+        case 'SINGLE_ASSET':
+        default:
+          totalPools = await registry.getPoolCount();
+          getPoolAtIndex = (i) => registry.getPoolAtIndex(i);
+          getPoolData = (addr) => registry.getPoolInfo(addr);
+          break;
+      }
 
       // Check last 10 pools (should cover recent deployments)
       const checkCount = Math.min(10, Number(totalPools));
 
       for (let i = Number(totalPools) - checkCount; i < Number(totalPools); i++) {
-        const poolAddress =
-          pool.poolType === 'STABLE_YIELD'
-            ? await registry.getStableYieldPoolAtIndex(i)
-            : await registry.getPoolAtIndex(i);
+        if (i < 0) continue;
 
-        // Get pool info from registry
-        const poolInfo =
-          pool.poolType === 'STABLE_YIELD'
-            ? await registry.getStableYieldPoolData(poolAddress)
-            : await registry.getPoolInfo(poolAddress);
+        const poolAddress = await getPoolAtIndex(i);
+        const poolInfo = await getPoolData(poolAddress);
 
-        // Match by asset address (simple matching for now)
+        // Match by asset address
         if (poolInfo.asset.toLowerCase() === pool.assetAddress.toLowerCase()) {
           // Check if this pool was created recently (within last 5 minutes)
           const now = Math.floor(Date.now() / 1000);
           const creationTime = Number(poolInfo.createdAt || poolInfo.timestamp || 0);
 
           if (now - creationTime < 300) {
-            // Within 5 minutes
             this.logger.log(`✅ Found deployed pool: ${poolAddress} for pending pool ${pool.id}`);
 
             // Update database with manager/escrow/spv
@@ -132,10 +142,15 @@ export class PoolCreationWatcher implements OnModuleInit {
                 managerAddress: poolInfo.manager?.toLowerCase() || '',
                 escrowAddress: poolInfo.escrow?.toLowerCase() || '',
                 spvAddress: poolInfo.spvAddress?.toLowerCase() || pool.spvAddress,
-                status: 'FUNDING',
+                status: pool.poolType === 'LOCKED' ? 'FUNDING' : 'FUNDING',
                 createdOnChain: new Date(creationTime * 1000),
               },
             });
+
+            // For Locked pools, also create lock tiers in database
+            if (pool.poolType === 'LOCKED') {
+              await this.createLockTiersForPool(chainId, pool.id, poolAddress);
+            }
 
             // Create initial analytics record
             await this.prisma.poolAnalytics.create({
@@ -160,6 +175,42 @@ export class PoolCreationWatcher implements OnModuleInit {
   }
 
   /**
+   * Create lock tiers for a newly deployed locked pool
+   */
+  private async createLockTiersForPool(chainId: number, poolId: string, poolAddress: string) {
+    try {
+      const tiers = await this.poolBuilder.parseLockedPoolTiers(chainId, poolAddress);
+
+      if (tiers.length === 0) {
+        this.logger.warn(`No tiers found for locked pool ${poolAddress}`);
+        return;
+      }
+
+      // Get asset decimals for conversion
+      const pool = await this.prisma.pool.findUnique({ where: { id: poolId } });
+      if (!pool) return;
+
+      for (const tier of tiers) {
+        await this.prisma.lockTier.create({
+          data: {
+            poolId: poolId,
+            tierIndex: tier.tierIndex,
+            durationDays: tier.durationDays,
+            apyBps: tier.apyBps,
+            earlyExitPenaltyBps: tier.earlyExitPenaltyBps,
+            minDeposit: parseFloat(ethers.formatUnits(tier.minDeposit, pool.assetDecimals)),
+            isActive: tier.isActive,
+          },
+        });
+      }
+
+      this.logger.log(`✅ Created ${tiers.length} lock tiers for pool ${poolId}`);
+    } catch (error) {
+      this.logger.error(`Error creating lock tiers for pool ${poolId}: ${error.message}`);
+    }
+  }
+
+  /**
    * Manual confirmation method (can be called by API endpoint)
    */
   async confirmPoolDeployment(poolId: string, txHash: string): Promise<boolean> {
@@ -180,7 +231,11 @@ export class PoolCreationWatcher implements OnModuleInit {
       const receipt = await this.blockchain.waitForTransaction(pool.chainId, txHash, 1);
 
       // Parse PoolCreated event
-      const eventData = this.poolBuilder.parsePoolCreatedEvent(receipt, pool.poolType as any);
+      const eventData = this.poolBuilder.parsePoolCreatedEvent(
+        receipt,
+        pool.poolType as PoolType,
+        pool.chainId,
+      );
 
       if (!eventData) {
         throw new Error('PoolCreated event not found in transaction receipt');
@@ -196,6 +251,11 @@ export class PoolCreationWatcher implements OnModuleInit {
           createdOnChain: new Date(),
         },
       });
+
+      // For Locked pools, create lock tiers
+      if (pool.poolType === 'LOCKED') {
+        await this.createLockTiersForPool(pool.chainId, poolId, eventData.poolAddress);
+      }
 
       // Create initial analytics
       await this.prisma.poolAnalytics.create({

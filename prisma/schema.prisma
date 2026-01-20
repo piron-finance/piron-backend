@@ -1,6 +1,6 @@
 // Piron Finance - Complete Database Schema
-// This schema covers both Single-Asset and Stable Yield pools with all off-chain data
-// Generated: 2025-01-04
+// This schema covers Single-Asset, Stable Yield, and Locked pools with all off-chain data
+// Updated: 2025-01-20 - Added Locked Pool support
 // PostgreSQL Database
 
 generator client {
@@ -41,6 +41,7 @@ model User {
   bankAccounts      BankAccount[]
   transactions      Transaction[]
   poolPositions     PoolPosition[]
+  lockedPositions   LockedPosition[]
   withdrawalRequests WithdrawalRequest[]
   notifications     Notification[]
   auditLogs         AuditLog[]
@@ -196,7 +197,7 @@ model Asset {
 }
 
 // ============================================================================
-// POOLS (Both Single-Asset & Stable Yield)
+// POOLS (Single-Asset, Stable Yield, and Locked)
 // ============================================================================
 
 model Pool {
@@ -230,7 +231,7 @@ model Pool {
   discountRate    Int?                 // Basis points
   
   // Stable Yield Pool specific
-  spvAddress      String?              // SPV wallet address for Stable Yield pools
+  spvAddress      String?              // SPV wallet address for Stable Yield and Locked pools
   projectedAPY    Decimal?  @db.Decimal(5, 2)
   
   // Status
@@ -273,6 +274,8 @@ model Pool {
   spvOperations       SPVOperation[]
   navHistory          NAVHistory[]
   spvPreferences      SPVPreference[]
+  lockTiers           LockTier[]
+  lockedPositions     LockedPosition[]
   
   @@unique([chainId, poolAddress])
   @@index([poolType, status])
@@ -281,6 +284,90 @@ model Pool {
   @@index([country, region])
   @@index([status, maturityDate])
 }
+
+// ============================================================================
+// LOCK TIERS (Locked Pools)
+// ============================================================================
+
+model LockTier {
+  id                   String   @id @default(uuid())
+  poolId               String
+  pool                 Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  
+  tierIndex            Int      // 0, 1, 2... (sequential)
+  durationDays         Int      // 90, 180, 365
+  apyBps               Int      // 500 = 5%
+  earlyExitPenaltyBps  Int      // 1000 = 10%
+  minDeposit           Decimal  @db.Decimal(18, 6)
+  isActive             Boolean  @default(true)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relationships
+  lockedPositions      LockedPosition[]
+  
+  @@unique([poolId, tierIndex])
+  @@index([poolId, isActive])
+}
+
+// ============================================================================
+// LOCKED POSITIONS (Locked Pools)
+// ============================================================================
+
+model LockedPosition {
+  id                    String   @id @default(uuid())
+  positionId            Int      @unique  // Global on-chain ID (unique across all pools)
+  
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poolId                String
+  pool                  Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  tierId                String
+  tier                  LockTier @relation(fields: [tierId], references: [id])
+  
+  // Position data
+  principal             Decimal  @db.Decimal(18, 6)
+  investedAmount        Decimal  @db.Decimal(18, 6)  // = shares (different from principal for UPFRONT)
+  interest              Decimal  @db.Decimal(18, 6)
+  interestPayment       InterestPayment
+  expectedMaturityPayout Decimal @db.Decimal(18, 6)
+  
+  // Timing
+  depositTime           DateTime
+  lockEndTime           DateTime
+  
+  // Status
+  status                LockedPositionStatus @default(ACTIVE)
+  autoRollover          Boolean  @default(false)
+  
+  // Transaction references
+  depositTxHash         String?
+  
+  // Exit data (populated on exit/redemption)
+  actualPayout          Decimal? @db.Decimal(18, 6)
+  penaltyPaid           Decimal? @db.Decimal(18, 6)
+  proRataInterest       Decimal? @db.Decimal(18, 6)  // For AT_MATURITY early exit
+  exitTime              DateTime?
+  exitTxHash            String?
+  
+  // Rollover tracking
+  rolledFromPositionId  Int?     // Previous position if this was rolled over from
+  rolledToPositionId    Int?     // New position if this rolled over to another
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId, status])
+  @@index([poolId, status])
+  @@index([lockEndTime, status])
+  @@index([positionId])
+  @@index([depositTxHash])
+}
+
+// ============================================================================
+// POOL POSITIONS (Single-Asset & Stable Yield)
+// ============================================================================
 
 model PoolPosition {
   id              String   @id @default(uuid())
@@ -350,6 +437,9 @@ model Transaction {
   gasUsed         BigInt?
   gasPrice        BigInt?
   
+  // Locked position reference (for POSITION_CREATED, POSITION_REDEEMED, EARLY_EXIT, ROLLOVER)
+  lockedPositionId Int?
+  
   // Status
   status          TxStatus @default(PENDING)
   failureReason   String?
@@ -364,6 +454,7 @@ model Transaction {
   @@index([txHash])
   @@index([chainId, blockNumber])
   @@index([status, createdAt])
+  @@index([lockedPositionId])
 }
 
 // ============================================================================
@@ -578,6 +669,12 @@ model PoolAnalytics {
   // Performance
   apy               Decimal? @db.Decimal(8, 4)   // Annualized Percentage Yield
   totalReturn       Decimal? @db.Decimal(18, 6)
+  
+  // Locked Pool specific
+  totalPrincipalLocked    Decimal  @default(0) @db.Decimal(18, 6)
+  totalInterestPaid       Decimal  @default(0) @db.Decimal(18, 6)
+  totalPenaltiesCollected Decimal  @default(0) @db.Decimal(18, 6)
+  activePositions         Int      @default(0)
   
   // 24h metrics
   volume24h         Decimal  @default(0) @db.Decimal(18, 6)
@@ -873,6 +970,7 @@ enum DocumentStatus {
 enum PoolType {
   SINGLE_ASSET
   STABLE_YIELD
+  LOCKED
 }
 
 enum PoolStatus {
@@ -892,6 +990,21 @@ enum InstrumentType {
   INTEREST_BEARING
 }
 
+// Interest payment choice for Locked Pools
+enum InterestPayment {
+  UPFRONT       // Interest paid immediately, shares = principal - interest
+  AT_MATURITY   // Interest paid at lock end, shares = principal
+}
+
+// Position status for Locked Pools
+enum LockedPositionStatus {
+  ACTIVE        // Position is locked
+  MATURED       // Ready for redemption
+  REDEEMED      // User collected funds at maturity
+  EARLY_EXIT    // User exited early with penalty
+  ROLLED_OVER   // Position rolled into new one
+}
+
 enum TransactionType {
   DEPOSIT
   WITHDRAWAL
@@ -900,6 +1013,12 @@ enum TransactionType {
   REFUND
   EMERGENCY_WITHDRAWAL
   TRANSFER
+  // Locked Pool specific
+  POSITION_CREATED
+  POSITION_REDEEMED
+  EARLY_EXIT
+  ROLLOVER
+  INTEREST_PAYMENT
 }
 
 enum TxStatus {
@@ -955,6 +1074,14 @@ enum NotificationType {
   FIAT_DEPOSIT_COMPLETED
   FIAT_WITHDRAWAL_COMPLETED
   SYSTEM_ANNOUNCEMENT
+  // Locked Pool specific
+  POSITION_CREATED
+  POSITION_MATURED
+  POSITION_REDEEMED
+  EARLY_EXIT_PROCESSED
+  INTEREST_PAID
+  ROLLOVER_EXECUTED
+  ROLLOVER_REMINDER
 }
 
 enum NotificationPriority {
@@ -1012,6 +1139,7 @@ enum IndexerType {
   DEPOSIT
   WITHDRAWAL
   POOL_STATUS
+  LOCKED_POSITION
 }
 
 // ============================================================================
@@ -1052,6 +1180,7 @@ enum TreasuryTxType {
   FEE_COLLECTION
   WITHDRAWAL
   PROTOCOL_REVENUE
+  PENALTY_COLLECTION
 }
 
 // ============================================================================
@@ -1071,4 +1200,3 @@ model EmergencyAction {
   @@index([createdAt])
   @@index([poolAddress])
 }
-

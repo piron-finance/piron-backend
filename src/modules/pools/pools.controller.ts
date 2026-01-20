@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Param,
+  HttpCode,
+  HttpStatus,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { PoolsService } from './pools.service';
 import { PoolQueryDto } from './dtos/pool-query.dto';
 
@@ -28,5 +36,40 @@ export class PoolsController {
   @HttpCode(HttpStatus.OK)
   async getPoolStats(@Param('poolAddress') poolAddress: string) {
     return this.poolsService.getPoolStats(poolAddress);
+  }
+
+  /**
+   * Get lock tiers for a locked pool
+   */
+  @Get(':poolAddress/tiers')
+  @HttpCode(HttpStatus.OK)
+  async getPoolTiers(@Param('poolAddress') poolAddress: string) {
+    return this.poolsService.getPoolTiers(poolAddress);
+  }
+
+  /**
+   * Get live metrics for a locked pool from blockchain
+   */
+  @Get(':chainId/:poolAddress/locked-metrics')
+  @HttpCode(HttpStatus.OK)
+  async getLockedPoolMetrics(
+    @Param('chainId', ParseIntPipe) chainId: number,
+    @Param('poolAddress') poolAddress: string,
+  ) {
+    return this.poolsService.getLockedPoolMetrics(chainId, poolAddress);
+  }
+
+  /**
+   * Preview locked deposit interest calculation
+   */
+  @Get(':chainId/:poolAddress/preview-locked')
+  @HttpCode(HttpStatus.OK)
+  async previewLockedDeposit(
+    @Param('chainId', ParseIntPipe) chainId: number,
+    @Param('poolAddress') poolAddress: string,
+    @Query('amount') amount: string,
+    @Query('tierIndex', ParseIntPipe) tierIndex: number,
+  ) {
+    return this.poolsService.previewLockedDeposit(chainId, poolAddress, amount, tierIndex);
   }
 }

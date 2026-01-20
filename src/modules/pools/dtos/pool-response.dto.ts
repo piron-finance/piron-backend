@@ -1,4 +1,30 @@
-import { Pool, PoolAnalytics, PoolType, PoolStatus } from '@prisma/client';
+import { PoolType, PoolStatus } from '@prisma/client';
+
+// Lock Tier DTO for Locked Pools
+export class LockTierDto {
+  id: string;
+  tierIndex: number;
+  durationDays: number;
+  apyBps: number;           // 500 = 5%
+  earlyExitPenaltyBps: number; // 1000 = 10%
+  minDeposit: string;
+  isActive: boolean;
+}
+
+// Analytics with locked pool specific fields
+export class PoolAnalyticsDto {
+  totalValueLocked: string;
+  totalShares: string;
+  navPerShare: string | null;
+  uniqueInvestors: number;
+  apy: string | null;
+
+  // Locked pool specific
+  totalPrincipalLocked?: string;
+  totalInterestPaid?: string;
+  totalPenaltiesCollected?: string;
+  activePositions?: number;
+}
 
 export class PoolResponseDto {
   id: string;
@@ -30,14 +56,14 @@ export class PoolResponseDto {
   maturityDate: Date | null;
   discountRate: number | null;
 
+  // SPV address (for Stable Yield and Locked pools)
+  spvAddress?: string | null;
+
+  // Locked pool specific
+  lockTiers?: LockTierDto[];
+
   // Analytics (if included)
-  analytics?: {
-    totalValueLocked: string;
-    totalShares: string;
-    navPerShare: string | null;
-    uniqueInvestors: number;
-    apy: string | null;
-  } | null;
+  analytics?: PoolAnalyticsDto | null;
 
   // Live blockchain data
   liveData?: {
@@ -64,6 +90,15 @@ export class PoolDetailDto extends PoolResponseDto {
   prospectusUrl: string | null;
 
   createdOnChain: Date;
+
+  // Locked pool specific metrics (from blockchain)
+  lockedPoolMetrics?: {
+    totalPrincipal: string;
+    totalInterestPaid: string;
+    totalPenalties: string;
+    activePositionCount: number;
+    totalPositionCount: number;
+  };
 }
 
 export class PaginatedPoolsDto {

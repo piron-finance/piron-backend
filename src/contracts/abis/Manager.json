@@ -2,6 +2,20 @@
   { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
+    "name": "MAX_EXTENSION_DAYS",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_WITHDRAWAL_FEE",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "UPGRADE_INTERFACE_VERSION",
     "inputs": [],
     "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
@@ -11,13 +25,7 @@
     "type": "function",
     "name": "accessManager",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract AccessManager"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract AccessManager" }],
     "stateMutability": "view"
   },
   {
@@ -73,11 +81,7 @@
     "type": "function",
     "name": "claimUserCoupon",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "user", "type": "address", "internalType": "address" }
     ],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -86,13 +90,7 @@
   {
     "type": "function",
     "name": "closeEpoch",
-    "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -111,56 +109,17 @@
             "type": "uint8",
             "internalType": "enum IPoolTypes.InstrumentType"
           },
-          {
-            "name": "faceValue",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "purchasePrice",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "targetRaise",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "epochEndTime",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maturityDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "couponDates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "couponRates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "refundGasFee",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "discountRate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minimumFundingThreshold",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "faceValue", "type": "uint256", "internalType": "uint256" },
+          { "name": "purchasePrice", "type": "uint256", "internalType": "uint256" },
+          { "name": "targetRaise", "type": "uint256", "internalType": "uint256" },
+          { "name": "epochEndTime", "type": "uint256", "internalType": "uint256" },
+          { "name": "maturityDate", "type": "uint256", "internalType": "uint256" },
+          { "name": "couponDates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "couponRates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "discountRate", "type": "uint256", "internalType": "uint256" },
+          { "name": "minimumFundingThreshold", "type": "uint256", "internalType": "uint256" },
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
+          { "name": "withdrawalFeeBps", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
@@ -169,13 +128,7 @@
   {
     "type": "function",
     "name": "distributeCouponPayment",
-    "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -195,14 +148,18 @@
   },
   {
     "type": "function",
-    "name": "forceCloseEpoch",
+    "name": "extendMaturity",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "newMaturityDate", "type": "uint256", "internalType": "uint256" }
     ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "forceCloseEpoch",
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -210,6 +167,31 @@
     "type": "function",
     "name": "getExpectedReturn",
     "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getInvestmentProof",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IPoolTypes.InvestmentProof",
+        "components": [
+          { "name": "documentHash", "type": "string", "internalType": "string" },
+          { "name": "confirmedAt", "type": "uint256", "internalType": "uint256" },
+          { "name": "confirmedBy", "type": "address", "internalType": "address" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolFeesCollected",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
@@ -230,26 +212,14 @@
   {
     "type": "function",
     "name": "getUnclaimedCoupons",
-    "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "getUndistributedCoupons",
-    "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
@@ -257,11 +227,7 @@
     "type": "function",
     "name": "getUserAvailableCoupon",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "user", "type": "address", "internalType": "address" }
     ],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -271,11 +237,7 @@
     "type": "function",
     "name": "handleDeposit",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "assets", "type": "uint256", "internalType": "uint256" },
       { "name": "receiver", "type": "address", "internalType": "address" },
       { "name": "sender", "type": "address", "internalType": "address" }
@@ -286,13 +248,7 @@
   {
     "type": "function",
     "name": "handlePoolFilled",
-    "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -300,11 +256,7 @@
     "type": "function",
     "name": "handleWithdraw",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "assets", "type": "uint256", "internalType": "uint256" },
       { "name": "receiver", "type": "address", "internalType": "address" },
       { "name": "owner", "type": "address", "internalType": "address" },
@@ -318,57 +270,9 @@
     "name": "initialize",
     "inputs": [
       { "name": "_registry", "type": "address", "internalType": "address" },
-      {
-        "name": "_accessManager",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_timelockController",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "initializeManagedPool",
-    "inputs": [
-      { "name": "managedPool", "type": "address", "internalType": "address" },
-      {
-        "name": "poolConfig",
-        "type": "tuple",
-        "internalType": "struct IManagedPoolTypes.ManagedPoolConfig",
-        "components": [
-          {
-            "name": "underlyingPools",
-            "type": "address[]",
-            "internalType": "address[]"
-          },
-          {
-            "name": "allocationWeights",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "poolType",
-            "type": "uint8",
-            "internalType": "enum IManagedPoolTypes.ManagedPoolType"
-          },
-          {
-            "name": "minInvestment",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "managementFee",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      }
+      { "name": "_accessManager", "type": "address", "internalType": "address" },
+      { "name": "_timelockController", "type": "address", "internalType": "address" },
+      { "name": "_treasury", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -388,61 +292,33 @@
             "type": "uint8",
             "internalType": "enum IPoolTypes.InstrumentType"
           },
-          {
-            "name": "faceValue",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "purchasePrice",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "targetRaise",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "epochEndTime",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maturityDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "couponDates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "couponRates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "refundGasFee",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "discountRate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minimumFundingThreshold",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "faceValue", "type": "uint256", "internalType": "uint256" },
+          { "name": "purchasePrice", "type": "uint256", "internalType": "uint256" },
+          { "name": "targetRaise", "type": "uint256", "internalType": "uint256" },
+          { "name": "epochEndTime", "type": "uint256", "internalType": "uint256" },
+          { "name": "maturityDate", "type": "uint256", "internalType": "uint256" },
+          { "name": "couponDates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "couponRates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "discountRate", "type": "uint256", "internalType": "uint256" },
+          { "name": "minimumFundingThreshold", "type": "uint256", "internalType": "uint256" },
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
+          { "name": "withdrawalFeeBps", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "investmentProofs",
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "documentHash", "type": "string", "internalType": "string" },
+      { "name": "confirmedAt", "type": "uint256", "internalType": "uint256" },
+      { "name": "confirmedBy", "type": "address", "internalType": "address" }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -453,39 +329,9 @@
   },
   {
     "type": "function",
-    "name": "isManagedPool",
-    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
-    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "isMatured",
     "inputs": [],
     "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "managedPoolConfigs",
-    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
-    "outputs": [
-      {
-        "name": "poolType",
-        "type": "uint8",
-        "internalType": "enum IManagedPoolTypes.ManagedPoolType"
-      },
-      {
-        "name": "minInvestment",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "managementFee",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
     "stateMutability": "view"
   },
   {
@@ -527,13 +373,7 @@
     "type": "function",
     "name": "poolStatus",
     "inputs": [{ "name": "pool", "type": "address", "internalType": "address" }],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum IPoolTypes.PoolStatus"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "uint8", "internalType": "enum IPoolTypes.PoolStatus" }],
     "stateMutability": "view"
   },
   {
@@ -593,11 +433,7 @@
     ],
     "outputs": [
       { "name": "depositTime", "type": "uint256", "internalType": "uint256" },
-      {
-        "name": "couponsClaimed",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+      { "name": "couponsClaimed", "type": "uint256", "internalType": "uint256" }
     ],
     "stateMutability": "view"
   },
@@ -616,99 +452,29 @@
             "type": "uint8",
             "internalType": "enum IPoolTypes.InstrumentType"
           },
-          {
-            "name": "faceValue",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "purchasePrice",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "targetRaise",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "epochEndTime",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maturityDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "couponDates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "couponRates",
-            "type": "uint256[]",
-            "internalType": "uint256[]"
-          },
-          {
-            "name": "refundGasFee",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "discountRate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "minimumFundingThreshold",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "faceValue", "type": "uint256", "internalType": "uint256" },
+          { "name": "purchasePrice", "type": "uint256", "internalType": "uint256" },
+          { "name": "targetRaise", "type": "uint256", "internalType": "uint256" },
+          { "name": "epochEndTime", "type": "uint256", "internalType": "uint256" },
+          { "name": "maturityDate", "type": "uint256", "internalType": "uint256" },
+          { "name": "couponDates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "couponRates", "type": "uint256[]", "internalType": "uint256[]" },
+          { "name": "discountRate", "type": "uint256", "internalType": "uint256" },
+          { "name": "minimumFundingThreshold", "type": "uint256", "internalType": "uint256" },
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
+          { "name": "withdrawalFeeBps", "type": "uint256", "internalType": "uint256" }
         ]
       },
-      {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum IPoolTypes.PoolStatus"
-      },
+      { "name": "status", "type": "uint8", "internalType": "enum IPoolTypes.PoolStatus" },
       { "name": "totalRaised", "type": "uint256", "internalType": "uint256" },
-      {
-        "name": "actualInvested",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalDiscountEarned",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalCouponsReceived",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalCouponsDistributed",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalCouponsClaimed",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "fundsWithdrawnBySPV",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "fundsReturnedBySPV",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
+      { "name": "actualInvested", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalDiscountEarned", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalCouponsReceived", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalCouponsDistributed", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalCouponsClaimed", "type": "uint256", "internalType": "uint256" },
+      { "name": "fundsWithdrawnBySPV", "type": "uint256", "internalType": "uint256" },
+      { "name": "fundsReturnedBySPV", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalFeesCollected", "type": "uint256", "internalType": "uint256" }
     ],
     "stateMutability": "view"
   },
@@ -716,11 +482,7 @@
     "type": "function",
     "name": "processCouponPayment",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "amount", "type": "uint256", "internalType": "uint256" }
     ],
     "outputs": [],
@@ -730,16 +492,8 @@
     "type": "function",
     "name": "processInvestment",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "actualAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
+      { "name": "actualAmount", "type": "uint256", "internalType": "uint256" },
       { "name": "proofHash", "type": "string", "internalType": "string" }
     ],
     "outputs": [],
@@ -749,11 +503,7 @@
     "type": "function",
     "name": "processMaturity",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "finalAmount", "type": "uint256", "internalType": "uint256" }
     ],
     "outputs": [],
@@ -770,38 +520,27 @@
     "type": "function",
     "name": "registry",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IPoolRegistry"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract IPoolRegistry" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "setAccessManager",
-    "inputs": [
-      {
-        "name": "newAccessManager",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "newAccessManager", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "setTimelockController",
-    "inputs": [
-      {
-        "name": "newTimelockController",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "newTimelockController", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setTreasury",
+    "inputs": [{ "name": "newTreasury", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -809,13 +548,7 @@
     "type": "function",
     "name": "status",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "enum IPoolTypes.PoolStatus"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "uint8", "internalType": "enum IPoolTypes.PoolStatus" }],
     "stateMutability": "view"
   },
   {
@@ -848,6 +581,13 @@
   },
   {
     "type": "function",
+    "name": "treasury",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "unpausePool",
     "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
     "outputs": [],
@@ -857,11 +597,7 @@
     "type": "function",
     "name": "upgradeToAndCall",
     "inputs": [
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "newImplementation", "type": "address", "internalType": "address" },
       { "name": "data", "type": "bytes", "internalType": "bytes" }
     ],
     "outputs": [],
@@ -885,11 +621,7 @@
     "type": "function",
     "name": "withdrawFundsForInvestment",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "liquidityPool", "type": "address", "internalType": "address" },
       { "name": "amount", "type": "uint256", "internalType": "uint256" }
     ],
     "outputs": [],
@@ -899,18 +631,8 @@
     "type": "event",
     "name": "AccessManagerUpdated",
     "inputs": [
-      {
-        "name": "oldManager",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      },
-      {
-        "name": "newManager",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "oldManager", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "newManager", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -918,24 +640,9 @@
     "type": "event",
     "name": "CouponClaimed",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -943,24 +650,9 @@
     "type": "event",
     "name": "CouponDistributed",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "liquidityPool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -968,18 +660,8 @@
     "type": "event",
     "name": "CouponPaymentReceived",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -987,18 +669,8 @@
     "type": "event",
     "name": "CouponReceived",
     "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1006,36 +678,11 @@
     "type": "event",
     "name": "Deposit",
     "inputs": [
-      {
-        "name": "liquidityPool",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "receiver",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "assets",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "liquidityPool", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "receiver", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1043,24 +690,9 @@
     "type": "event",
     "name": "DiscountsDistributed",
     "inputs": [
-      {
-        "name": "poolAddress",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "totalDiscount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalShares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "totalDiscount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "totalShares", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1068,18 +700,8 @@
     "type": "event",
     "name": "EmergencyExit",
     "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "caller", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1087,112 +709,36 @@
     "type": "event",
     "name": "EmergencyStateChanged",
     "inputs": [
-      {
-        "name": "poolAddress",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "trigger",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "totalAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "totalShares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "trigger", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "totalAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "totalShares", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "Initialized",
-    "inputs": [
-      {
-        "name": "version",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      }
-    ],
+    "inputs": [{ "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "InvestmentConfirmed",
     "inputs": [
-      {
-        "name": "actualAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "proofHash",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      }
+      { "name": "actualAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "proofHash", "type": "string", "indexed": false, "internalType": "string" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "ManagedPoolInitialized",
+    "name": "InvestmentProofRecorded",
     "inputs": [
-      {
-        "name": "managedPool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "poolType",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum IManagedPoolTypes.ManagedPoolType"
-      },
-      {
-        "name": "underlyingPoolsCount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "ManagedPoolRebalanced",
-    "inputs": [
-      {
-        "name": "managedPool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "documentHash", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "confirmedBy", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -1212,12 +758,28 @@
         "indexed": true,
         "internalType": "address"
       },
-      {
-        "name": "version",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "version", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MaturityExtended",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "oldDate", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "newDate", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "extendedBy", "type": "address", "indexed": true, "internalType": "address" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MaturityOverage",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "expected", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "actual", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1225,12 +787,18 @@
     "type": "event",
     "name": "MaturityProcessed",
     "inputs": [
-      {
-        "name": "finalAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "finalAmount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MaturityShortfall",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "expected", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "actual", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "shortfall", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1238,24 +806,9 @@
     "type": "event",
     "name": "PoolCancelled",
     "inputs": [
-      {
-        "name": "poolAddress",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "cancelledBy",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "cancelledBy", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1263,24 +816,9 @@
     "type": "event",
     "name": "PoolFilled",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "totalRaised",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "totalRaised", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1288,18 +826,8 @@
     "type": "event",
     "name": "PoolFullyWithdrawn",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1307,18 +835,8 @@
     "type": "event",
     "name": "PoolPaused",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1326,18 +844,8 @@
     "type": "event",
     "name": "PoolUnpaused",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1345,18 +853,8 @@
     "type": "event",
     "name": "RefundClaimed",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1364,18 +862,8 @@
     "type": "event",
     "name": "SPVFundsReturned",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1383,24 +871,9 @@
     "type": "event",
     "name": "SPVFundsWithdrawn",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "transferId",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "transferId", "type": "bytes32", "indexed": false, "internalType": "bytes32" }
     ],
     "anonymous": false
   },
@@ -1408,30 +881,10 @@
     "type": "event",
     "name": "SlippageProtectionActivated",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "expected",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "actual",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "tolerance",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "expected", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "actual", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "tolerance", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1458,18 +911,17 @@
     "type": "event",
     "name": "TimelockControllerUpdated",
     "inputs": [
-      {
-        "name": "oldController",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "newController",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "oldController", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "newController", "type": "address", "indexed": true, "internalType": "address" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasuryUpdated",
+    "inputs": [
+      { "name": "oldTreasury", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "newTreasury", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -1477,12 +929,7 @@
     "type": "event",
     "name": "Upgraded",
     "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "implementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -1490,36 +937,22 @@
     "type": "event",
     "name": "Withdraw",
     "inputs": [
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "receiver",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "assets",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "receiver", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "owner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WithdrawalFeeCollected",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "feeAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "netAmount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1538,13 +971,7 @@
   {
     "type": "error",
     "name": "ERC1967InvalidImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
   },
   { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
   { "type": "error", "name": "EpochNotEnded", "inputs": [] },

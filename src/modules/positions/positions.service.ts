@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
+import { BlockchainService } from '../../blockchain/blockchain.service';
+import { LockedPositionStatus } from '@prisma/client';
 
 @Injectable()
 export class PositionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private blockchain: BlockchainService,
+  ) {}
 
   async getUserPositions(walletAddress: string) {
     try {
-      // Get user
       const user = await this.prisma.user.findUnique({
         where: { walletAddress: walletAddress.toLowerCase() },
       });
@@ -16,7 +20,7 @@ export class PositionsService {
         throw new NotFoundException(`User with wallet ${walletAddress} not found`);
       }
 
-      // Get all user positions with enhanced pool data
+      // Get all user positions (Single-Asset & Stable Yield) with enhanced pool data
       const positions = await this.prisma.poolPosition.findMany({
         where: {
           userId: user.id,
@@ -49,7 +53,33 @@ export class PositionsService {
         },
       });
 
-      // Get all last transactions in a SINGLE query (optimized, not N+1)
+      // Get all locked positions
+      const lockedPositions = await this.prisma.lockedPosition.findMany({
+        where: {
+          userId: user.id,
+          status: { in: [LockedPositionStatus.ACTIVE, LockedPositionStatus.MATURED] },
+        },
+        include: {
+          pool: {
+            select: {
+              id: true,
+              name: true,
+              poolType: true,
+              poolAddress: true,
+              assetSymbol: true,
+              status: true,
+              country: true,
+              issuer: true,
+            },
+          },
+          tier: true,
+        },
+        orderBy: {
+          principal: 'desc',
+        },
+      });
+
+      // Get last transactions for non-locked positions
       const poolIds = positions.map((p) => p.poolId);
       const lastTransactions = await this.prisma.transaction.findMany({
         where: {
@@ -67,31 +97,55 @@ export class PositionsService {
         },
       });
 
-      // Create a map for O(1) lookup
-      const transactionMap = new Map(
-        lastTransactions.map((tx) => [tx.poolId, tx]),
-      );
+      const transactionMap = new Map(lastTransactions.map((tx) => [tx.poolId, tx]));
 
-      // Map positions with their last transaction
       const positionsWithActivity = positions.map((pos) => ({
         ...pos,
         lastTransaction: transactionMap.get(pos.poolId) || null,
       }));
 
-      // Calculate analytics
-      const totalValue = positionsWithActivity.reduce((sum, p) => sum + Number(p.currentValue), 0);
-      const totalDeposited = positionsWithActivity.reduce((sum, p) => sum + Number(p.totalDeposited), 0);
-      const totalReturn = totalValue - totalDeposited;
-      const totalReturnPercentage = totalDeposited > 0 ? (totalReturn / totalDeposited) * 100 : 0;
-      const activePositions = positionsWithActivity.length;
+      // Calculate analytics for regular positions
+      const regularTotalValue = positionsWithActivity.reduce(
+        (sum, p) => sum + Number(p.currentValue),
+        0,
+      );
+      const regularTotalDeposited = positionsWithActivity.reduce(
+        (sum, p) => sum + Number(p.totalDeposited),
+        0,
+      );
 
-      // Calculate weighted average APY (using same logic as pools service)
+      // Calculate analytics for locked positions
+      const lockedTotalPrincipal = lockedPositions.reduce(
+        (sum, p) => sum + Number(p.principal),
+        0,
+      );
+      const lockedTotalInvested = lockedPositions.reduce(
+        (sum, p) => sum + Number(p.investedAmount),
+        0,
+      );
+      const lockedExpectedPayout = lockedPositions.reduce(
+        (sum, p) => sum + Number(p.expectedMaturityPayout),
+        0,
+      );
+
+      // Combined totals
+      const totalValue = regularTotalValue + lockedTotalInvested;
+      const totalDeposited = regularTotalDeposited + lockedTotalPrincipal;
+      const totalReturn = totalValue - totalDeposited + (lockedExpectedPayout - lockedTotalPrincipal);
+      const totalReturnPercentage = totalDeposited > 0 ? (totalReturn / totalDeposited) * 100 : 0;
+
+      // Calculate weighted average APY
       const weightedAPY =
         totalValue > 0
           ? positionsWithActivity.reduce((sum, p) => {
               const posValue = Number(p.currentValue);
               const poolAPY = Number(p.pool.analytics?.apy || p.pool.projectedAPY || 0);
               return sum + (posValue * poolAPY) / totalValue;
+            }, 0) +
+            lockedPositions.reduce((sum, p) => {
+              const posValue = Number(p.investedAmount);
+              const tierAPY = p.tier.apyBps / 100;
+              return sum + (posValue * tierAPY) / totalValue;
             }, 0)
           : 0;
 
@@ -104,8 +158,12 @@ export class PositionsService {
           totalReturnPercentage: totalReturnPercentage.toFixed(2),
           unrealizedReturn: totalReturn.toString(),
           realizedReturn: '0.00',
-          activePositions,
+          activePositions: positionsWithActivity.length,
+          activeLockedPositions: lockedPositions.length,
           averageAPY: weightedAPY.toFixed(2),
+          // Locked specific
+          lockedPrincipal: lockedTotalPrincipal.toString(),
+          lockedExpectedPayout: lockedExpectedPayout.toString(),
         },
         positions: positionsWithActivity.map((pos) => {
           const daysHeld = pos.firstDepositTime
@@ -115,6 +173,7 @@ export class PositionsService {
           return {
             id: pos.id,
             poolId: pos.poolId,
+            positionType: 'POOL',
             pool: {
               id: pos.pool.id,
               name: pos.pool.name,
@@ -147,19 +206,18 @@ export class PositionsService {
             isActive: pos.isActive,
           };
         }),
+        lockedPositions: lockedPositions.map((pos) => this.mapLockedPosition(pos)),
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      
-      // Log error for monitoring
+
       console.error(
         `Error fetching positions for ${walletAddress}: ${error.message}`,
         error.stack,
       );
-      
-      // Return empty portfolio on error (consider throwing in production)
+
       return {
         analytics: {
           totalValue: '0',
@@ -170,16 +228,19 @@ export class PositionsService {
           unrealizedReturn: '0',
           realizedReturn: '0.00',
           activePositions: 0,
+          activeLockedPositions: 0,
           averageAPY: '0.00',
+          lockedPrincipal: '0',
+          lockedExpectedPayout: '0',
         },
         positions: [],
+        lockedPositions: [],
       };
     }
   }
 
   async getUserPositionInPool(walletAddress: string, poolAddress: string) {
     try {
-      // Get user
       const user = await this.prisma.user.findUnique({
         where: { walletAddress: walletAddress.toLowerCase() },
       });
@@ -188,7 +249,6 @@ export class PositionsService {
         throw new NotFoundException(`User with wallet ${walletAddress} not found`);
       }
 
-      // Get pool with enhanced data
       const pool = await this.prisma.pool.findFirst({
         where: { poolAddress: poolAddress.toLowerCase() },
         select: {
@@ -215,7 +275,6 @@ export class PositionsService {
         throw new NotFoundException(`Pool with address ${poolAddress} not found`);
       }
 
-      // Get position
       const position = await this.prisma.poolPosition.findUnique({
         where: {
           userId_poolId: {
@@ -231,7 +290,6 @@ export class PositionsService {
         );
       }
 
-      // Get last activity
       const lastTransaction = await this.prisma.transaction.findFirst({
         where: {
           userId: user.id,
@@ -300,6 +358,282 @@ export class PositionsService {
       }
       throw error;
     }
+  }
+
+  // ============================================================================
+  // LOCKED POSITIONS
+  // ============================================================================
+
+  /**
+   * Get all locked positions for a user
+   */
+  async getUserLockedPositions(walletAddress: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { walletAddress: walletAddress.toLowerCase() },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with wallet ${walletAddress} not found`);
+    }
+
+    const lockedPositions = await this.prisma.lockedPosition.findMany({
+      where: { userId: user.id },
+      include: {
+        pool: {
+          select: {
+            id: true,
+            name: true,
+            poolType: true,
+            poolAddress: true,
+            assetSymbol: true,
+            assetDecimals: true,
+            chainId: true,
+            status: true,
+            country: true,
+            issuer: true,
+          },
+        },
+        tier: true,
+      },
+      orderBy: [{ status: 'asc' }, { lockEndTime: 'asc' }],
+    });
+
+    // Group by status for summary
+    const active = lockedPositions.filter((p) => p.status === LockedPositionStatus.ACTIVE);
+    const matured = lockedPositions.filter((p) => p.status === LockedPositionStatus.MATURED);
+    const completed = lockedPositions.filter((p) =>
+      p.status === LockedPositionStatus.REDEEMED ||
+      p.status === LockedPositionStatus.EARLY_EXIT ||
+      p.status === LockedPositionStatus.ROLLED_OVER,
+    );
+
+    const totalPrincipalLocked = active.reduce((sum, p) => sum + Number(p.principal), 0);
+    const totalExpectedPayout = active.reduce((sum, p) => sum + Number(p.expectedMaturityPayout), 0);
+    const totalInterestEarning = active.reduce((sum, p) => sum + Number(p.interest), 0);
+
+    return {
+      summary: {
+        activeCount: active.length,
+        maturedCount: matured.length,
+        completedCount: completed.length,
+        totalPrincipalLocked: totalPrincipalLocked.toString(),
+        totalExpectedPayout: totalExpectedPayout.toString(),
+        totalInterestEarning: totalInterestEarning.toString(),
+        expectedReturn: (totalExpectedPayout - totalPrincipalLocked).toString(),
+      },
+      positions: lockedPositions.map((pos) => this.mapLockedPosition(pos)),
+    };
+  }
+
+  /**
+   * Get a specific locked position by ID
+   */
+  async getLockedPosition(positionId: number) {
+    const position = await this.prisma.lockedPosition.findUnique({
+      where: { positionId },
+      include: {
+        pool: {
+          select: {
+            id: true,
+            name: true,
+            poolType: true,
+            poolAddress: true,
+            assetSymbol: true,
+            assetDecimals: true,
+            chainId: true,
+            status: true,
+            country: true,
+            issuer: true,
+          },
+        },
+        tier: true,
+        user: {
+          select: {
+            walletAddress: true,
+          },
+        },
+      },
+    });
+
+    if (!position) {
+      throw new NotFoundException(`Locked position ${positionId} not found`);
+    }
+
+    return this.mapLockedPositionDetail(position);
+  }
+
+  /**
+   * Get locked positions for a specific pool
+   */
+  async getPoolLockedPositions(poolAddress: string) {
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: poolAddress.toLowerCase() },
+    });
+
+    if (!pool) {
+      throw new NotFoundException(`Pool ${poolAddress} not found`);
+    }
+
+    if (pool.poolType !== 'LOCKED') {
+      throw new Error('Pool is not a Locked pool');
+    }
+
+    const positions = await this.prisma.lockedPosition.findMany({
+      where: { poolId: pool.id },
+      include: {
+        tier: true,
+        user: {
+          select: {
+            walletAddress: true,
+          },
+        },
+      },
+      orderBy: { depositTime: 'desc' },
+    });
+
+    return positions.map((pos) => ({
+      ...this.mapLockedPosition({ ...pos, pool }),
+      userAddress: pos.user.walletAddress,
+    }));
+  }
+
+  /**
+   * Calculate early exit preview for a locked position
+   */
+  async previewEarlyExit(positionId: number) {
+    const position = await this.prisma.lockedPosition.findUnique({
+      where: { positionId },
+      include: { pool: true, tier: true },
+    });
+
+    if (!position) {
+      throw new NotFoundException(`Locked position ${positionId} not found`);
+    }
+
+    if (position.status !== LockedPositionStatus.ACTIVE) {
+      throw new Error('Position is not active');
+    }
+
+    try {
+      const earlyExitCalc = await this.blockchain.calculateEarlyExitPayout(
+        position.pool.chainId,
+        positionId,
+      );
+
+      return {
+        positionId,
+        principal: position.principal.toString(),
+        interest: position.interest.toString(),
+        interestPayment: position.interestPayment,
+        daysElapsed: Number(earlyExitCalc.daysElapsed),
+        daysRemaining: position.tier.durationDays - Number(earlyExitCalc.daysElapsed),
+        penalty: (Number(earlyExitCalc.penalty) / 10 ** position.pool.assetDecimals).toString(),
+        penaltyPercentage: ((Number(earlyExitCalc.penalty) / Number(position.principal)) * 100).toFixed(2),
+        proRataInterest: (Number(earlyExitCalc.proRataInterest) / 10 ** position.pool.assetDecimals).toString(),
+        estimatedPayout: (Number(earlyExitCalc.payout) / 10 ** position.pool.assetDecimals).toString(),
+      };
+    } catch (error) {
+      // Fallback calculation if blockchain call fails
+      const now = Date.now();
+      const depositTime = position.depositTime.getTime();
+      const daysElapsed = Math.floor((now - depositTime) / (1000 * 60 * 60 * 24));
+      const penalty = (Number(position.principal) * position.tier.earlyExitPenaltyBps) / 10000;
+
+      let proRataInterest = 0;
+      if (position.interestPayment === 'AT_MATURITY') {
+        proRataInterest = (Number(position.interest) * daysElapsed) / position.tier.durationDays;
+      }
+
+      const estimatedPayout = Number(position.principal) - penalty + proRataInterest;
+
+      return {
+        positionId,
+        principal: position.principal.toString(),
+        interest: position.interest.toString(),
+        interestPayment: position.interestPayment,
+        daysElapsed,
+        daysRemaining: position.tier.durationDays - daysElapsed,
+        penalty: penalty.toString(),
+        penaltyPercentage: ((penalty / Number(position.principal)) * 100).toFixed(2),
+        proRataInterest: proRataInterest.toString(),
+        estimatedPayout: estimatedPayout.toString(),
+        note: 'Estimate - verify on-chain before executing',
+      };
+    }
+  }
+
+  // ============================================================================
+  // PRIVATE HELPERS
+  // ============================================================================
+
+  private mapLockedPosition(pos: any) {
+    const now = Date.now();
+    const lockEnd = pos.lockEndTime.getTime();
+    const depositTime = pos.depositTime.getTime();
+
+    const daysElapsed = Math.floor((now - depositTime) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(0, Math.ceil((lockEnd - now) / (1000 * 60 * 60 * 24)));
+    const progressPercent = Math.min(100, (daysElapsed / pos.tier.durationDays) * 100);
+    const isMatured = now >= lockEnd;
+
+    return {
+      id: pos.id,
+      positionId: pos.positionId,
+      positionType: 'LOCKED',
+      pool: {
+        id: pos.pool.id,
+        name: pos.pool.name,
+        poolType: pos.pool.poolType,
+        poolAddress: pos.pool.poolAddress,
+        assetSymbol: pos.pool.assetSymbol,
+        status: pos.pool.status,
+        country: pos.pool.country,
+        issuer: pos.pool.issuer,
+      },
+      tier: {
+        tierIndex: pos.tier.tierIndex,
+        durationDays: pos.tier.durationDays,
+        apyBps: pos.tier.apyBps,
+        apyPercent: (pos.tier.apyBps / 100).toFixed(2),
+        earlyExitPenaltyBps: pos.tier.earlyExitPenaltyBps,
+        earlyExitPenaltyPercent: (pos.tier.earlyExitPenaltyBps / 100).toFixed(2),
+      },
+      principal: pos.principal.toString(),
+      investedAmount: pos.investedAmount.toString(),
+      interest: pos.interest.toString(),
+      interestPayment: pos.interestPayment,
+      expectedMaturityPayout: pos.expectedMaturityPayout.toString(),
+      depositTime: pos.depositTime,
+      lockEndTime: pos.lockEndTime,
+      status: pos.status,
+      autoRollover: pos.autoRollover,
+      // Progress tracking
+      daysElapsed,
+      daysRemaining,
+      progressPercent: progressPercent.toFixed(1),
+      isMatured,
+      // Exit info (if applicable)
+      actualPayout: pos.actualPayout?.toString() || null,
+      penaltyPaid: pos.penaltyPaid?.toString() || null,
+      exitTime: pos.exitTime,
+    };
+  }
+
+  private mapLockedPositionDetail(pos: any) {
+    const base = this.mapLockedPosition(pos);
+    return {
+      ...base,
+      chainId: pos.pool.chainId,
+      assetDecimals: pos.pool.assetDecimals,
+      userAddress: pos.user.walletAddress,
+      depositTxHash: pos.depositTxHash,
+      exitTxHash: pos.exitTxHash,
+      proRataInterest: pos.proRataInterest?.toString() || null,
+      rolledFromPositionId: pos.rolledFromPositionId,
+      rolledToPositionId: pos.rolledToPositionId,
+      createdAt: pos.createdAt,
+      updatedAt: pos.updatedAt,
+    };
   }
 
   private formatCurrency(amount: number): string {

@@ -4,7 +4,12 @@ import { BlockchainService } from '../../blockchain/blockchain.service';
 import { PoolBuilderService } from '../../blockchain/pool-builder.service';
 import { PoolCreationWatcher } from '../../blockchain/pool-creation-watcher.service';
 import { PoolCreationValidator } from './validators/pool-creation.validator';
-import { CreatePoolDto, ConfirmPoolDeploymentDto } from './dtos/create-pool.dto';
+import {
+  CreatePoolDto,
+  ConfirmPoolDeploymentDto,
+  UpdateLockTierDto,
+  AddLockTierDto,
+} from './dtos/create-pool.dto';
 import {
   PausePoolDto,
   ApproveAssetDto,
@@ -122,7 +127,16 @@ export class AdminService {
       discountRate: dto.discountRate,
       instrumentType: dto.instrumentType,
       name: dto.name,
+      symbol: dto.symbol,
       spvAddress: dto.spvAddress,
+      // Locked pool specific
+      initialTiers: dto.initialTiers?.map((tier) => ({
+        durationDays: tier.durationDays,
+        apyBps: tier.apyBps,
+        earlyExitPenaltyBps: tier.earlyExitPenaltyBps,
+        minDeposit: tier.minDeposit,
+        isActive: tier.isActive ?? true,
+      })),
     });
 
     this.logger.log(`Transaction data generated for pool ${pool.id}`);
@@ -462,12 +476,19 @@ export class AdminService {
           }, 0)
         : 0;
 
-    // Treasury & Fee Metrics (mock for now - will be replaced with FeeManager contract calls)
+    // Treasury & Fee Metrics from pool analytics
+    const treasuryAgg = await this.prisma.treasuryTransaction.aggregate({
+      _sum: { amount: true },
+      where: { type: { in: ['FEE_COLLECTION', 'PENALTY_COLLECTION', 'PROTOCOL_REVENUE'] } },
+    });
+
+    const penaltiesAgg = await this.prisma.poolAnalytics.aggregate({
+      _sum: { totalPenaltiesCollected: true },
+    });
+
     const treasuryMetrics = {
-      totalBalance: '0', // TODO: Query from FeeManager contract
-      collectedFees: '0', // TODO: Query from FeeManager contract
-      pendingFees: '0', // TODO: Calculate from pools
-      protocolRevenue: '0', // TODO: Sum of all collected fees
+      totalCollected: treasuryAgg._sum.amount?.toString() || '0',
+      totalPenalties: penaltiesAgg._sum.totalPenaltiesCollected?.toString() || '0',
     };
 
     return {
@@ -1150,9 +1171,10 @@ export class AdminService {
 
   /**
    * Get treasury overview
+   * Note: With FeeManager removed, fees are now handled per-pool via managers
    */
   async getTreasuryOverview(chainId = 84532) {
-    // Get recent treasury transactions
+    // Get recent treasury transactions from database
     const recentTransactions = await this.prisma.treasuryTransaction.findMany({
       take: 20,
       orderBy: { createdAt: 'desc' },
@@ -1164,7 +1186,7 @@ export class AdminService {
         if (!acc[tx.asset]) {
           acc[tx.asset] = { collected: 0, withdrawn: 0 };
         }
-        if (tx.type === 'FEE_COLLECTION' || tx.type === 'PROTOCOL_REVENUE') {
+        if (tx.type === 'FEE_COLLECTION' || tx.type === 'PROTOCOL_REVENUE' || tx.type === 'PENALTY_COLLECTION') {
           acc[tx.asset].collected += Number(tx.amount);
         } else if (tx.type === 'WITHDRAWAL') {
           acc[tx.asset].withdrawn += Number(tx.amount);
@@ -1183,31 +1205,35 @@ export class AdminService {
       0,
     );
 
+    // Get pool-level fee stats
+    const poolAnalytics = await this.prisma.poolAnalytics.aggregate({
+      _sum: {
+        totalPenaltiesCollected: true,
+        totalInterestPaid: true,
+      },
+    });
+
     return {
       summary: {
         totalCollected: totalCollected.toString(),
         totalWithdrawn: totalWithdrawn.toString(),
+        totalPenaltiesCollected: poolAnalytics._sum.totalPenaltiesCollected?.toString() || '0',
       },
       byAsset: totalsByAsset,
       recentTransactions: recentTransactions.map((tx) => ({
         ...tx,
         amount: tx.amount.toString(),
       })),
+      note: 'Fees are now managed per-pool via StableYieldManager and LockedPoolManager',
     };
   }
 
   /**
-   * Withdraw from treasury
+   * Withdraw from treasury (via SPV or direct pool withdrawal)
+   * Note: With FeeManager removed, withdrawals happen at pool level
    */
   async withdrawTreasury(dto: WithdrawTreasuryDto, chainId = 84532) {
-    // Note: FeeManager contract integration needed
-    // For now, we'll create a transaction record
-
-    const addresses = CONTRACT_ADDRESSES[chainId];
-
-    // TODO: Build actual FeeManager.withdrawTreasury() call
-    const data = '0x'; // Placeholder - need FeeManager ABI
-
+    // Record the withdrawal intent
     await this.prisma.treasuryTransaction.create({
       data: {
         type: 'WITHDRAWAL',
@@ -1219,15 +1245,16 @@ export class AdminService {
       },
     });
 
-    this.logger.log(`Treasury withdrawal: ${dto.amount} ${dto.asset} to ${dto.recipient}`);
+    this.logger.log(`Treasury withdrawal recorded: ${dto.amount} ${dto.asset} to ${dto.recipient}`);
 
     return {
-      transaction: {
-        to: addresses.feeManager,
-        data,
-        value: '0',
-        description: `Withdraw ${dto.amount} from treasury to ${dto.recipient}`,
-      },
+      success: true,
+      message:
+        'Treasury withdrawal recorded. With FeeManager removed, withdrawals happen at individual pool level via SPV operations.',
+      amount: dto.amount,
+      asset: dto.asset,
+      recipient: dto.recipient,
+      note: 'Use allocateToSPV or pool-specific withdrawal functions',
     };
   }
 
@@ -1235,11 +1262,25 @@ export class AdminService {
 
   /**
    * Get fee configuration and stats
+   * Fees are now managed per-pool via StableYieldManager
    */
   async getFees(chainId = 84532) {
+    const addresses = CONTRACT_ADDRESSES[chainId];
+
+    // Get fee config from StableYieldManager
+    let defaultTransactionFee = 0;
+    try {
+      const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
+      const maxFee = await stableYieldManager.MAX_TRANSACTION_FEE();
+      defaultTransactionFee = Number(maxFee);
+    } catch (error) {
+      this.logger.warn(`Could not fetch fee config: ${error.message}`);
+    }
+
+    // Get fee collection history
     const feeTransactions = await this.prisma.treasuryTransaction.findMany({
       where: {
-        type: 'FEE_COLLECTION',
+        type: { in: ['FEE_COLLECTION', 'PENALTY_COLLECTION'] },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -1247,17 +1288,34 @@ export class AdminService {
 
     const totalCollected = feeTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
 
+    // Get per-pool fee stats
+    const poolFeeStats = await this.prisma.poolAnalytics.findMany({
+      where: {
+        totalPenaltiesCollected: { gt: 0 },
+      },
+      include: {
+        pool: {
+          select: { name: true, poolAddress: true, poolType: true },
+        },
+      },
+    });
+
     return {
       configuration: {
-        // TODO: Query from FeeManager contract
-        managementFee: 200, // 2% in basis points
-        performanceFee: 2000, // 20% in basis points
-        withdrawalFee: 50, // 0.5% in basis points
+        maxTransactionFeeBps: defaultTransactionFee,
+        note: 'Fees now configured per-pool via StableYieldManager.setPoolTransactionFee()',
       },
       summary: {
         totalCollected: totalCollected.toString(),
         transactionCount: feeTransactions.length,
       },
+      byPool: poolFeeStats.map((stat) => ({
+        poolName: stat.pool.name,
+        poolAddress: stat.pool.poolAddress,
+        poolType: stat.pool.poolType,
+        penaltiesCollected: stat.totalPenaltiesCollected.toString(),
+        interestPaid: stat.totalInterestPaid?.toString() || '0',
+      })),
       recentCollections: feeTransactions.map((tx) => ({
         ...tx,
         amount: tx.amount.toString(),
@@ -1266,7 +1324,7 @@ export class AdminService {
   }
 
   /**
-   * Collect fees from a pool
+   * Set transaction fee for a specific pool
    */
   async collectFees(dto: CollectFeesDto, chainId = 84532) {
     const pool = await this.prisma.pool.findFirst({
@@ -1280,42 +1338,96 @@ export class AdminService {
       throw new NotFoundException('Pool not found');
     }
 
+    // Fees are collected automatically on transactions now
+    // This endpoint can be used to query current fee status
     const addresses = CONTRACT_ADDRESSES[chainId];
 
-    // TODO: Build FeeManager.collectFees(poolAddress) call
-    const data = '0x'; // Placeholder - need FeeManager ABI
+    if (pool.poolType === 'STABLE_YIELD') {
+      const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
+      const feeBps = await stableYieldManager.getPoolTransactionFee(pool.poolAddress);
 
-    this.logger.log(`Collecting fees from pool: ${pool.name}`);
+      return {
+        pool: {
+          name: pool.name,
+          address: pool.poolAddress,
+          type: pool.poolType,
+        },
+        currentFeeBps: Number(feeBps),
+        currentFeePercent: (Number(feeBps) / 100).toFixed(2),
+        note: 'Fees are collected automatically on deposits/withdrawals. Use setPoolTransactionFee to update.',
+      };
+    } else if (pool.poolType === 'LOCKED') {
+      // For locked pools, penalties are collected on early exit
+      const analytics = await this.prisma.poolAnalytics.findUnique({
+        where: { poolId: pool.id },
+      });
+
+      return {
+        pool: {
+          name: pool.name,
+          address: pool.poolAddress,
+          type: pool.poolType,
+        },
+        penaltiesCollected: analytics?.totalPenaltiesCollected?.toString() || '0',
+        note: 'Locked pool fees come from early exit penalties, collected automatically.',
+      };
+    }
 
     return {
-      transaction: {
-        to: addresses.feeManager,
-        data,
-        value: '0',
-        description: `Collect fees from ${pool.name}`,
+      pool: {
+        name: pool.name,
+        address: pool.poolAddress,
+        type: pool.poolType,
       },
+      note: 'Fees are managed per-pool type. Check pool-specific manager for fee details.',
     };
   }
 
   /**
-   * Update fee configuration
+   * Update fee configuration for a pool
    */
   async updateFeeConfig(dto: UpdateFeeConfigDto, chainId = 84532) {
     const addresses = CONTRACT_ADDRESSES[chainId];
 
-    // TODO: Build FeeManager.setFeeRate(poolType, feeType, rate) call
-    const data = '0x'; // Placeholder - need FeeManager ABI
+    if (dto.poolType === 'STABLE_YIELD') {
+      const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
 
-    this.logger.log(`Updating ${dto.feeType} fee for ${dto.poolType} to ${dto.rate} basis points`);
+      // Build setPoolTransactionFee or setDefaultTransactionFee call
+      let data: string;
+      let description: string;
 
-    return {
-      transaction: {
-        to: addresses.feeManager,
-        data,
-        value: '0',
-        description: `Update ${dto.feeType} fee to ${dto.rate / 100}%`,
-      },
-    };
+      if (dto.poolAddress) {
+        data = stableYieldManager.interface.encodeFunctionData('setPoolTransactionFee', [
+          dto.poolAddress,
+          dto.rate,
+        ]);
+        description = `Set transaction fee to ${dto.rate / 100}% for pool ${dto.poolAddress}`;
+      } else {
+        data = stableYieldManager.interface.encodeFunctionData('setDefaultTransactionFee', [
+          dto.rate,
+        ]);
+        description = `Set default transaction fee to ${dto.rate / 100}%`;
+      }
+
+      this.logger.log(description);
+
+      return {
+        transaction: {
+          to: addresses.stableYieldManager,
+          data,
+          value: '0',
+          description,
+        },
+      };
+    } else if (dto.poolType === 'LOCKED') {
+      // Locked pool fees are early exit penalties, configured per-tier
+      return {
+        message: 'Locked pool fees are configured via tier early exit penalties.',
+        note: 'Use PATCH /admin/locked-pools/:address/tiers/:index to update earlyExitPenaltyBps',
+      };
+    }
+
+    throw new BadRequestException(`Fee configuration not supported for pool type: ${dto.poolType}`);
   }
 
   // ========== EMERGENCY OPERATIONS ==========
@@ -1439,7 +1551,7 @@ export class AdminService {
           manager: { address: addresses.manager, paused: false },
           poolRegistry: { address: addresses.poolRegistry, totalPools: Number(totalPools) },
           stableYieldManager: { address: addresses.stableYieldManager },
-          feeManager: { address: addresses.feeManager },
+          lockedPoolManager: { address: addresses.lockedPoolManager },
         },
       };
     } catch (error) {
@@ -2234,6 +2346,359 @@ export class AdminService {
         'Process all pending withdrawal requests',
         'Users can withdraw remaining funds',
       ],
+    };
+  }
+
+  // ========== LOCKED POOL MANAGEMENT ==========
+
+  /**
+   * Get locked pool details including tiers and position statistics
+   */
+  async getLockedPoolDetail(poolAddress: string, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: {
+        poolAddress: poolAddress.toLowerCase(),
+        chainId,
+      },
+      include: {
+        analytics: true,
+        lockTiers: {
+          orderBy: { tierIndex: 'asc' },
+        },
+        lockedPositions: {
+          where: { status: { in: ['ACTIVE', 'MATURED'] } },
+        },
+      },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    if (pool.poolType !== 'LOCKED') {
+      throw new BadRequestException('Pool is not a Locked pool');
+    }
+
+    // Calculate per-tier statistics
+    const tierStats = pool.lockTiers.map((tier) => {
+      const tierPositions = pool.lockedPositions.filter(
+        (pos) => pos.tierId === tier.id,
+      );
+      const activeCount = tierPositions.filter((p) => p.status === 'ACTIVE').length;
+      const maturedCount = tierPositions.filter((p) => p.status === 'MATURED').length;
+      const totalPrincipal = tierPositions.reduce(
+        (sum, p) => sum + Number(p.principal),
+        0,
+      );
+
+      return {
+        tier: {
+          id: tier.id,
+          tierIndex: tier.tierIndex,
+          durationDays: tier.durationDays,
+          apyBps: tier.apyBps,
+          apyPercent: (tier.apyBps / 100).toFixed(2),
+          earlyExitPenaltyBps: tier.earlyExitPenaltyBps,
+          earlyExitPenaltyPercent: (tier.earlyExitPenaltyBps / 100).toFixed(2),
+          minDeposit: tier.minDeposit.toString(),
+          isActive: tier.isActive,
+        },
+        stats: {
+          activePositions: activeCount,
+          maturedPositions: maturedCount,
+          totalPositions: tierPositions.length,
+          totalPrincipal: totalPrincipal.toFixed(2),
+        },
+      };
+    });
+
+    // Get positions maturing soon (within 7 days)
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const maturingSoon = pool.lockedPositions.filter(
+      (p) => p.status === 'ACTIVE' && p.lockEndTime <= sevenDaysFromNow,
+    );
+
+    return {
+      pool: {
+        id: pool.id,
+        address: pool.poolAddress,
+        name: pool.name,
+        description: pool.description,
+        status: pool.status,
+        assetSymbol: pool.assetSymbol,
+        spvAddress: pool.spvAddress,
+      },
+      analytics: {
+        totalValueLocked: pool.analytics?.totalValueLocked?.toString() || '0',
+        totalPrincipalLocked: pool.analytics?.totalPrincipalLocked?.toString() || '0',
+        totalInterestPaid: pool.analytics?.totalInterestPaid?.toString() || '0',
+        totalPenaltiesCollected: pool.analytics?.totalPenaltiesCollected?.toString() || '0',
+        activePositions: pool.analytics?.activePositions || 0,
+        uniqueInvestors: pool.analytics?.uniqueInvestors || 0,
+      },
+      tiers: tierStats,
+      alerts: {
+        maturingSoon: maturingSoon.length,
+        maturingSoonValue: maturingSoon
+          .reduce((sum, p) => sum + Number(p.expectedMaturityPayout), 0)
+          .toFixed(2),
+      },
+    };
+  }
+
+  /**
+   * Update a lock tier's configuration
+   * Note: Cannot change durationDays after creation
+   */
+  async updateLockTier(
+    poolAddress: string,
+    tierIndex: number,
+    dto: UpdateLockTierDto,
+    chainId = 84532,
+  ) {
+    const pool = await this.prisma.pool.findFirst({
+      where: {
+        poolAddress: poolAddress.toLowerCase(),
+        chainId,
+      },
+      include: {
+        lockTiers: { where: { tierIndex } },
+      },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    if (pool.poolType !== 'LOCKED') {
+      throw new BadRequestException('Pool is not a Locked pool');
+    }
+
+    const tier = pool.lockTiers[0];
+    if (!tier) {
+      throw new NotFoundException(`Tier ${tierIndex} not found`);
+    }
+
+    // Update in database
+    const updatedTier = await this.prisma.lockTier.update({
+      where: { id: tier.id },
+      data: {
+        ...(dto.apyBps !== undefined && { apyBps: dto.apyBps }),
+        ...(dto.earlyExitPenaltyBps !== undefined && {
+          earlyExitPenaltyBps: dto.earlyExitPenaltyBps,
+        }),
+        ...(dto.minDeposit !== undefined && {
+          minDeposit: parseFloat(dto.minDeposit),
+        }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+
+    // Build transaction to update on-chain
+    // Note: This requires LockedPoolManager.updateTier() function
+    const lockedPoolManager = this.blockchain.getLockedPoolManager(chainId);
+    const addresses = CONTRACT_ADDRESSES[chainId];
+
+    // Build tier update transaction data
+    const tierConfig = {
+      durationDays: tier.durationDays,
+      apyBps: dto.apyBps ?? tier.apyBps,
+      earlyExitPenaltyBps: dto.earlyExitPenaltyBps ?? tier.earlyExitPenaltyBps,
+      minDeposit: dto.minDeposit
+        ? ethers.parseUnits(dto.minDeposit, pool.assetDecimals)
+        : ethers.parseUnits(tier.minDeposit.toString(), pool.assetDecimals),
+      isActive: dto.isActive ?? tier.isActive,
+    };
+
+    const data = lockedPoolManager.interface.encodeFunctionData('configureTier', [
+      pool.poolAddress,
+      tierIndex,
+      tierConfig,
+    ]);
+
+    this.logger.log(
+      `Lock tier ${tierIndex} updated for pool ${pool.name}: APY=${tierConfig.apyBps}bps`,
+    );
+
+    return {
+      tier: {
+        id: updatedTier.id,
+        tierIndex: updatedTier.tierIndex,
+        durationDays: updatedTier.durationDays,
+        apyBps: updatedTier.apyBps,
+        earlyExitPenaltyBps: updatedTier.earlyExitPenaltyBps,
+        minDeposit: updatedTier.minDeposit.toString(),
+        isActive: updatedTier.isActive,
+      },
+      transaction: {
+        to: addresses.lockedPoolManager,
+        data,
+        value: '0',
+        description: `Update tier ${tierIndex} for ${pool.name}`,
+      },
+    };
+  }
+
+  /**
+   * Add a new lock tier to an existing locked pool
+   */
+  async addLockTier(poolAddress: string, dto: AddLockTierDto, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: {
+        poolAddress: poolAddress.toLowerCase(),
+        chainId,
+      },
+      include: {
+        lockTiers: {
+          orderBy: { tierIndex: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    if (pool.poolType !== 'LOCKED') {
+      throw new BadRequestException('Pool is not a Locked pool');
+    }
+
+    // Get next tier index
+    const nextTierIndex = (pool.lockTiers[0]?.tierIndex ?? -1) + 1;
+
+    // Create in database
+    const newTier = await this.prisma.lockTier.create({
+      data: {
+        poolId: pool.id,
+        tierIndex: nextTierIndex,
+        durationDays: dto.durationDays,
+        apyBps: dto.apyBps,
+        earlyExitPenaltyBps: dto.earlyExitPenaltyBps,
+        minDeposit: parseFloat(dto.minDeposit),
+        isActive: dto.isActive ?? true,
+      },
+    });
+
+    // Build transaction to add on-chain
+    const lockedPoolManager = this.blockchain.getLockedPoolManager(chainId);
+    const addresses = CONTRACT_ADDRESSES[chainId];
+
+    const tierConfig = {
+      durationDays: dto.durationDays,
+      apyBps: dto.apyBps,
+      earlyExitPenaltyBps: dto.earlyExitPenaltyBps,
+      minDeposit: ethers.parseUnits(dto.minDeposit, pool.assetDecimals),
+      isActive: dto.isActive ?? true,
+    };
+
+    const data = lockedPoolManager.interface.encodeFunctionData('addTier', [
+      pool.poolAddress,
+      tierConfig,
+    ]);
+
+    this.logger.log(
+      `New lock tier added to pool ${pool.name}: ${dto.durationDays} days @ ${dto.apyBps / 100}% APY`,
+    );
+
+    return {
+      tier: {
+        id: newTier.id,
+        tierIndex: newTier.tierIndex,
+        durationDays: newTier.durationDays,
+        apyBps: newTier.apyBps,
+        earlyExitPenaltyBps: newTier.earlyExitPenaltyBps,
+        minDeposit: newTier.minDeposit.toString(),
+        isActive: newTier.isActive,
+      },
+      transaction: {
+        to: addresses.lockedPoolManager,
+        data,
+        value: '0',
+        description: `Add new ${dto.durationDays}-day tier to ${pool.name}`,
+      },
+    };
+  }
+
+  /**
+   * Get all locked positions for a pool (admin view)
+   */
+  async getLockedPoolPositions(poolAddress: string, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: {
+        poolAddress: poolAddress.toLowerCase(),
+        chainId,
+      },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    if (pool.poolType !== 'LOCKED') {
+      throw new BadRequestException('Pool is not a Locked pool');
+    }
+
+    const positions = await this.prisma.lockedPosition.findMany({
+      where: { poolId: pool.id },
+      include: {
+        tier: true,
+        user: {
+          select: {
+            walletAddress: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [{ status: 'asc' }, { lockEndTime: 'asc' }],
+    });
+
+    const now = Date.now();
+
+    return {
+      pool: {
+        id: pool.id,
+        name: pool.name,
+        poolAddress: pool.poolAddress,
+      },
+      summary: {
+        total: positions.length,
+        active: positions.filter((p) => p.status === 'ACTIVE').length,
+        matured: positions.filter((p) => p.status === 'MATURED').length,
+        redeemed: positions.filter((p) => p.status === 'REDEEMED').length,
+        earlyExited: positions.filter((p) => p.status === 'EARLY_EXIT').length,
+        rolledOver: positions.filter((p) => p.status === 'ROLLED_OVER').length,
+        totalPrincipal: positions
+          .filter((p) => p.status === 'ACTIVE')
+          .reduce((sum, p) => sum + Number(p.principal), 0)
+          .toFixed(2),
+      },
+      positions: positions.map((pos) => ({
+        positionId: pos.positionId,
+        userAddress: pos.user.walletAddress,
+        userEmail: pos.user.email,
+        tier: {
+          tierIndex: pos.tier.tierIndex,
+          durationDays: pos.tier.durationDays,
+          apyBps: pos.tier.apyBps,
+        },
+        principal: pos.principal.toString(),
+        investedAmount: pos.investedAmount.toString(),
+        interest: pos.interest.toString(),
+        interestPayment: pos.interestPayment,
+        expectedMaturityPayout: pos.expectedMaturityPayout.toString(),
+        depositTime: pos.depositTime,
+        lockEndTime: pos.lockEndTime,
+        status: pos.status,
+        autoRollover: pos.autoRollover,
+        daysRemaining: Math.max(
+          0,
+          Math.ceil((pos.lockEndTime.getTime() - now) / (1000 * 60 * 60 * 24)),
+        ),
+        actualPayout: pos.actualPayout?.toString() || null,
+        penaltyPaid: pos.penaltyPaid?.toString() || null,
+      })),
     };
   }
 }

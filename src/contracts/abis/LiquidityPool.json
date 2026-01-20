@@ -114,13 +114,7 @@
     "type": "function",
     "name": "escrow",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IPoolEscrow"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract IPoolEscrow" }],
     "stateMutability": "view"
   },
   {
@@ -169,11 +163,7 @@
     "type": "function",
     "name": "initialize",
     "inputs": [
-      {
-        "name": "asset_",
-        "type": "address",
-        "internalType": "contract IERC20"
-      },
+      { "name": "asset_", "type": "address", "internalType": "contract IERC20" },
       { "name": "name_", "type": "string", "internalType": "string" },
       { "name": "symbol_", "type": "string", "internalType": "string" },
       { "name": "_manager", "type": "address", "internalType": "address" },
@@ -214,13 +204,7 @@
     "type": "function",
     "name": "manager",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IPoolManager"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract IPoolManager" }],
     "stateMutability": "view"
   },
   {
@@ -432,11 +416,7 @@
     "type": "function",
     "name": "upgradeToAndCall",
     "inputs": [
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "newImplementation", "type": "address", "internalType": "address" },
       { "name": "data", "type": "bytes", "internalType": "bytes" }
     ],
     "outputs": [],
@@ -457,24 +437,9 @@
     "type": "event",
     "name": "Approval",
     "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "spender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "value",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "owner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "spender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "value", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -482,18 +447,8 @@
     "type": "event",
     "name": "CouponClaimed",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -501,30 +456,10 @@
     "type": "event",
     "name": "Deposit",
     "inputs": [
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "assets",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "owner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -532,18 +467,8 @@
     "type": "event",
     "name": "DiscountAccrued",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -551,56 +476,24 @@
     "type": "event",
     "name": "EmergencyWithdrawal",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "refundAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "sharesBurned",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "refundAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "sharesBurned", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "Initialized",
-    "inputs": [
-      {
-        "name": "version",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      }
-    ],
+    "inputs": [{ "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "ManagerUpdated",
     "inputs": [
-      {
-        "name": "oldManager",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      },
-      {
-        "name": "newManager",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "oldManager", "type": "address", "indexed": false, "internalType": "address" },
+      { "name": "newManager", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -608,12 +501,7 @@
     "type": "event",
     "name": "Paused",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "account", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -621,18 +509,8 @@
     "type": "event",
     "name": "RefundClaimed",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -640,18 +518,8 @@
     "type": "event",
     "name": "RefundSet",
     "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -659,24 +527,9 @@
     "type": "event",
     "name": "Transfer",
     "inputs": [
-      {
-        "name": "from",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "to",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "value",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "from", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "to", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "value", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -684,12 +537,7 @@
     "type": "event",
     "name": "Unpaused",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "account", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -697,12 +545,7 @@
     "type": "event",
     "name": "Upgraded",
     "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "implementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -710,36 +553,11 @@
     "type": "event",
     "name": "Withdraw",
     "inputs": [
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "receiver",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "assets",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "receiver", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "owner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -751,13 +569,7 @@
   {
     "type": "error",
     "name": "ERC1967InvalidImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
   },
   { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
   {

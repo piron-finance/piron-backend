@@ -14,42 +14,51 @@ export const NETWORKS = {
 } as const;
 
 interface NetworkContracts {
-  manager: string;
-  stableYieldManager: string;
-  poolRegistry: string;
-  poolFactory: string;
-  managedPoolFactory: string;
-  feeManager: string;
-  mockUSDC?: string;
-  usdc?: string;
-  cngn?: string;
+  // Governance
   accessManager: string;
   timelockController: string;
   upgradeGuardian: string;
+
+  // Core Infrastructure
+  poolRegistry: string;
+  poolFactory: string;
+  manager: string;
+
+  // Stable Yield
+  stableYieldManager: string;
+  managedPoolFactory: string;
+
+  // Locked Pool
+  lockedPoolManager: string;
+
+  // Assets
+  mockUSDC?: string;
+  usdc?: string;
+  cngn?: string;
 }
 
 export const CONTRACT_ADDRESSES: Record<number, NetworkContracts> = {
-  // Base Sepolia (84532)
+  // Base Sepolia (84532) - Latest Deployment
   84532: {
     // Governance
-    accessManager: '0x05b326d12D802DF04b96Fa82335c5b9e7e22EA4b',
-    timelockController: '0xD4480D4C5e15CdEab11dbA064d4F610aeb51bC1D',
-    upgradeGuardian: '0x546a7adb0077bC6EA21c8dCf27E257FB58bF42ea',
+    accessManager: '0xD247a5455569C4b8b9914566092cf30DBD46c98d',
+    timelockController: '0x2c98f4BcB2e61b07240018aB199A0Be6d9749C10',
+    upgradeGuardian: '0xcf279bb0a6D8E108978aF5472537F11Cb10F757e',
 
-    // Core Contracts (Proxies - use these!)
-    manager: '0x056dAC51BF925e88d5d9eA3394D70b55A1691Da2',
-    poolRegistry: '0x16308CeEB1Ee44Afc7c731B567D3135E1B2752e3',
-    poolFactory: '0x4A7E6245CA1AaE0E0f159A8aF23b336542a30aF0',
+    // Core Infrastructure (Proxies)
+    poolRegistry: '0xb295a7c89044Cfd884bA89F10D2bdD0Bb2093015',
+    poolFactory: '0x8846aDa6da5ABADcedb1Be69BCF4cf2D7c2487A5',
+    manager: '0x4035f114754010A17f10B492463a6a3Bf52b9449',
 
     // Stable Yield Contracts (Proxies)
-    stableYieldManager: '0xE756E61e69cd090Cfe7bF0648c6f488c47629a80',
-    managedPoolFactory: '0x958b320E4cce5B6930b5695Bb9B817Ec01209D4a',
+    stableYieldManager: '0x057C47B36aCCbe6ED96c1BbEBAB34e406c706c97',
+    managedPoolFactory: '0x04F02918D73360efD9f2fFEB6a3f8d278396b728',
 
-    // Supporting
-    feeManager: '0x10815459d81F88F3176FaAf81CF7be256FdFe94A',
+    // Locked Pool Contracts (Proxy)
+    lockedPoolManager: '0xAC9C38942A3991679733DA970810Bb21BA6Cc34F',
 
-    // Assets
-    mockUSDC: '0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa', // MockERC20 from deployment
+    // Test Assets
+    mockUSDC: '0x517E901cAe0c557029309A11e400a5bCc3BB65C0',
     usdc: '0xdB787674289f636E96864De93c952d0390B5bC58',
     cngn: '0x929A08903C22440182646Bb450a67178Be402f7f',
   },
@@ -59,12 +68,12 @@ export const CONTRACT_ADDRESSES: Record<number, NetworkContracts> = {
     accessManager: '',
     timelockController: '',
     upgradeGuardian: '',
-    manager: '',
     poolRegistry: '',
     poolFactory: '',
+    manager: '',
     stableYieldManager: '',
     managedPoolFactory: '',
-    feeManager: '',
+    lockedPoolManager: '',
     mockUSDC: '',
     usdc: '',
     cngn: '',

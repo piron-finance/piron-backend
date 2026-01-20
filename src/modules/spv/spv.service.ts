@@ -973,7 +973,7 @@ export class SpvService {
 
     try {
       // Get current NAV from contract
-      const poolContract = this.blockchain.getPool(chainId, poolAddress, true);
+      const poolContract = this.blockchain.getPool(chainId, poolAddress, 'STABLE_YIELD');
       const [navPerShare, totalAssets, totalShares] = await Promise.all([
         poolContract.getNAVPerShare(),
         poolContract.totalAssets(),
@@ -1237,13 +1237,13 @@ export class SpvService {
   // ========== PHASE 5: FEE COLLECTION ==========
 
   /**
-   * Get collectible fees (placeholder - needs FeeManager contract integration)
+   * Get fee stats for pools
+   * Note: With FeeManager removed, fees are collected automatically per-transaction
    */
   async getCollectibleFees() {
     const pools = await this.prisma.pool.findMany({
       where: {
-        poolType: 'STABLE_YIELD',
-        status: 'INVESTED',
+        poolType: { in: ['STABLE_YIELD', 'LOCKED'] },
         isActive: true,
       },
       include: {
@@ -1251,30 +1251,31 @@ export class SpvService {
       },
     });
 
-    // TODO: Query actual fees from FeeManager contract
-    const fees = pools.map((pool) => ({
+    const feeStats = pools.map((pool) => ({
       poolId: pool.id,
       poolName: pool.name,
-      feeType: 'MANAGEMENT',
-      amount: '0', // TODO: Calculate from contract
-      accruedSince: pool.createdAt,
-      lastCollected: null,
+      poolType: pool.poolType,
+      penaltiesCollected: pool.analytics?.totalPenaltiesCollected?.toString() || '0',
+      interestPaid: pool.analytics?.totalInterestPaid?.toString() || '0',
     }));
 
+    const totalPenalties = pools.reduce(
+      (sum, p) => sum + Number(p.analytics?.totalPenaltiesCollected || 0),
+      0,
+    );
+
     return {
-      fees,
+      fees: feeStats,
       summary: {
-        total: '0',
-        byType: {
-          MANAGEMENT: '0',
-          PERFORMANCE: '0',
-        },
+        totalPenalties: totalPenalties.toString(),
+        note: 'Fees are now collected automatically. Transaction fees on deposits/withdrawals, penalties on early exits.',
       },
     };
   }
 
   /**
-   * Collect fees (placeholder - needs FeeManager contract integration)
+   * Get fee status for a specific pool
+   * Note: Fees are collected automatically, this returns current config
    */
   async collectFees(poolAddress: string, feeType: string, chainId = 84532) {
     const pool = await this.prisma.pool.findFirst({
@@ -1282,16 +1283,48 @@ export class SpvService {
         poolAddress: poolAddress.toLowerCase(),
         chainId,
       },
+      include: {
+        analytics: true,
+      },
     });
 
     if (!pool) {
       throw new NotFoundException('Pool not found');
     }
 
-    // TODO: Build actual FeeManager call
+    if (pool.poolType === 'STABLE_YIELD') {
+      try {
+        const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
+        const feeBps = await stableYieldManager.getPoolTransactionFee(pool.poolAddress);
+
+        return {
+          pool: pool.name,
+          poolType: pool.poolType,
+          transactionFeeBps: Number(feeBps),
+          transactionFeePercent: (Number(feeBps) / 100).toFixed(2),
+          note: 'Fees are collected automatically on each transaction',
+        };
+      } catch (error) {
+        return {
+          pool: pool.name,
+          poolType: pool.poolType,
+          note: 'Could not query fee config from contract',
+          error: error.message,
+        };
+      }
+    } else if (pool.poolType === 'LOCKED') {
+      return {
+        pool: pool.name,
+        poolType: pool.poolType,
+        penaltiesCollected: pool.analytics?.totalPenaltiesCollected?.toString() || '0',
+        note: 'Locked pool fees come from early exit penalties (configured per tier)',
+      };
+    }
+
     return {
-      success: true,
-      message: 'Fee collection not yet implemented - needs FeeManager integration',
+      pool: pool.name,
+      poolType: pool.poolType,
+      note: 'Fee collection not applicable for this pool type',
     };
   }
 
