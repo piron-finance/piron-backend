@@ -36,12 +36,16 @@ logs/
 # Uploads
 uploads/
 
+# Internal documentation (not for git)
+road/
+admin-need.md
+API_DOCUMENTATION.md
+
 # Prisma
 # Note: Keep migrations in git for deployment
 
 # Temporary files
 *.tmp
 *.temp
-admin-need.md
 
 scripts/

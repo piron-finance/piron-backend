@@ -5,14 +5,46 @@ import {
   IsNumber,
   IsDateString,
   IsNotEmpty,
+  IsArray,
+  IsBoolean,
   Min,
   Max,
+  ValidateNested,
+  ArrayMinSize,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+/**
+ * Lock tier configuration for Locked Pools
+ */
+export class LockTierConfigDto {
+  @IsNumber()
+  @Min(1)
+  durationDays: number; // 90, 180, 365
+
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  apyBps: number; // 500 = 5%
+
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  earlyExitPenaltyBps: number; // 1000 = 10%
+
+  @IsString()
+  @IsNotEmpty()
+  minDeposit: string; // Minimum deposit amount
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean; // Default true
+}
 
 export class CreatePoolDto {
-  @IsEnum(['SINGLE_ASSET', 'STABLE_YIELD'])
+  @IsEnum(['SINGLE_ASSET', 'STABLE_YIELD', 'LOCKED'])
   @IsNotEmpty()
-  poolType: 'SINGLE_ASSET' | 'STABLE_YIELD';
+  poolType: 'SINGLE_ASSET' | 'STABLE_YIELD' | 'LOCKED';
 
   // On-chain parameters
   @IsString()
@@ -46,10 +78,22 @@ export class CreatePoolDto {
   @IsOptional()
   instrumentType?: 'DISCOUNTED' | 'INTEREST_BEARING';
 
+  // Locked Pool specific
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LockTierConfigDto)
+  @ArrayMinSize(1, { message: 'At least one lock tier is required for Locked pools' })
+  @IsOptional()
+  initialTiers?: LockTierConfigDto[];
+
   // Off-chain metadata
   @IsString()
   @IsNotEmpty()
   name: string; // Pool name (e.g., "Nigerian 91-Day T-Bill")
+
+  @IsString()
+  @IsOptional()
+  symbol?: string; // Pool token symbol (e.g., "lpNGN")
 
   @IsString()
   @IsOptional()
@@ -80,8 +124,8 @@ export class CreatePoolDto {
   securityType?: string; // Security type (e.g., "T-Bill", "Government Bond")
 
   @IsString()
-  @IsOptional()
-  spvAddress?: string; // SPV wallet address (for Stable Yield pools)
+  @IsNotEmpty()
+  spvAddress: string; // SPV wallet address (required for all managed pools)
 
   @IsOptional()
   tags?: string[]; // Tags for filtering
@@ -95,4 +139,56 @@ export class ConfirmPoolDeploymentDto {
   @IsString()
   @IsNotEmpty()
   txHash: string;
+}
+
+/**
+ * Update lock tier configuration
+ */
+export class UpdateLockTierDto {
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(10000)
+  apyBps?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(10000)
+  earlyExitPenaltyBps?: number;
+
+  @IsString()
+  @IsOptional()
+  minDeposit?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
+/**
+ * Add a new lock tier to an existing locked pool
+ */
+export class AddLockTierDto {
+  @IsNumber()
+  @Min(1)
+  durationDays: number;
+
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  apyBps: number;
+
+  @IsNumber()
+  @Min(0)
+  @Max(10000)
+  earlyExitPenaltyBps: number;
+
+  @IsString()
+  @IsNotEmpty()
+  minDeposit: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

@@ -20,6 +20,8 @@ export class PoolCreationValidator {
       this.validateSingleAssetPool(dto);
     } else if (dto.poolType === 'STABLE_YIELD') {
       this.validateStableYieldPool(dto);
+    } else if (dto.poolType === 'LOCKED') {
+      this.validateLockedPool(dto);
     }
 
     // 4. Validate minimum investment
@@ -120,6 +122,82 @@ export class PoolCreationValidator {
       throw new BadRequestException(
         'Target raise should not be provided for Stable Yield pools (open-ended)',
       );
+    }
+  }
+
+  private validateLockedPool(dto: CreatePoolDto): void {
+    // MUST have SPV address
+    if (!dto.spvAddress) {
+      throw new BadRequestException('SPV address is required for Locked pools');
+    }
+
+    // Validate SPV address format (basic check)
+    if (!/^0x[a-fA-F0-9]{40}$/.test(dto.spvAddress)) {
+      throw new BadRequestException('Invalid SPV address format');
+    }
+
+    // MUST have at least one lock tier
+    if (!dto.initialTiers || dto.initialTiers.length === 0) {
+      throw new BadRequestException('At least one lock tier is required for Locked pools');
+    }
+
+    // Validate each tier
+    for (let i = 0; i < dto.initialTiers.length; i++) {
+      const tier = dto.initialTiers[i];
+
+      // Duration must be positive
+      if (tier.durationDays <= 0) {
+        throw new BadRequestException(`Tier ${i + 1}: Duration must be positive`);
+      }
+
+      // APY must be reasonable (0-100%)
+      if (tier.apyBps < 0 || tier.apyBps > 10000) {
+        throw new BadRequestException(
+          `Tier ${i + 1}: APY must be between 0 and 10000 basis points (0-100%)`,
+        );
+      }
+
+      // Early exit penalty must be reasonable (0-100%)
+      if (tier.earlyExitPenaltyBps < 0 || tier.earlyExitPenaltyBps > 10000) {
+        throw new BadRequestException(
+          `Tier ${i + 1}: Early exit penalty must be between 0 and 10000 basis points (0-100%)`,
+        );
+      }
+
+      // Min deposit must be positive
+      const minDeposit = parseFloat(tier.minDeposit);
+      if (isNaN(minDeposit) || minDeposit <= 0) {
+        throw new BadRequestException(`Tier ${i + 1}: Minimum deposit must be greater than 0`);
+      }
+    }
+
+    // Should NOT have maturity date (individual positions have lock end times)
+    if (dto.maturityDate) {
+      throw new BadRequestException(
+        'Maturity date should not be provided for Locked pools (positions have individual lock durations)',
+      );
+    }
+
+    // Should NOT have discount rate
+    if (dto.discountRate !== undefined && dto.discountRate !== null) {
+      throw new BadRequestException('Discount rate should not be provided for Locked pools');
+    }
+
+    // Should NOT have instrument type
+    if (dto.instrumentType) {
+      throw new BadRequestException('Instrument type should not be provided for Locked pools');
+    }
+
+    // Should NOT have target raise (open-ended)
+    if (dto.targetRaise) {
+      throw new BadRequestException(
+        'Target raise should not be provided for Locked pools (open-ended)',
+      );
+    }
+
+    // Should NOT have epoch end time
+    if (dto.epochEndTime) {
+      throw new BadRequestException('Epoch end time should not be provided for Locked pools');
     }
   }
 }

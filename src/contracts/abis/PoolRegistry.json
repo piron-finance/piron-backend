@@ -2,13 +2,6 @@
   { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
-    "name": "DEFAULT_ADMIN_ROLE",
-    "inputs": [],
-    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "UPGRADE_INTERFACE_VERSION",
     "inputs": [],
     "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
@@ -18,13 +11,7 @@
     "type": "function",
     "name": "accessManager",
     "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract AccessManager"
-      }
-    ],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract AccessManager" }],
     "stateMutability": "view"
   },
   {
@@ -41,8 +28,6 @@
       { "name": "asset", "type": "address", "internalType": "address" },
       { "name": "name", "type": "string", "internalType": "string" },
       { "name": "symbol", "type": "string", "internalType": "string" },
-      { "name": "country", "type": "string", "internalType": "string" },
-      { "name": "region", "type": "string", "internalType": "string" },
       { "name": "isStablecoin", "type": "bool", "internalType": "bool" }
     ],
     "outputs": [],
@@ -51,13 +36,7 @@
   {
     "type": "function",
     "name": "approveImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -83,13 +62,6 @@
       { "name": "isApproved", "type": "bool", "internalType": "bool" },
       { "name": "name", "type": "string", "internalType": "string" },
       { "name": "symbol", "type": "string", "internalType": "string" },
-      { "name": "country", "type": "string", "internalType": "string" },
-      { "name": "region", "type": "string", "internalType": "string" },
-      {
-        "name": "tokenAddress",
-        "type": "address",
-        "internalType": "address"
-      },
       { "name": "decimals", "type": "uint8", "internalType": "uint8" },
       { "name": "isStablecoin", "type": "bool", "internalType": "bool" },
       { "name": "approvedAt", "type": "uint256", "internalType": "uint256" }
@@ -130,23 +102,19 @@
           { "name": "isApproved", "type": "bool", "internalType": "bool" },
           { "name": "name", "type": "string", "internalType": "string" },
           { "name": "symbol", "type": "string", "internalType": "string" },
-          { "name": "country", "type": "string", "internalType": "string" },
-          { "name": "region", "type": "string", "internalType": "string" },
-          {
-            "name": "tokenAddress",
-            "type": "address",
-            "internalType": "address"
-          },
           { "name": "decimals", "type": "uint8", "internalType": "uint8" },
           { "name": "isStablecoin", "type": "bool", "internalType": "bool" },
-          {
-            "name": "approvedAt",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "approvedAt", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getLockedPoolAtIndex",
+    "inputs": [{ "name": "index", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "stateMutability": "view"
   },
   {
@@ -184,28 +152,12 @@
           { "name": "manager", "type": "address", "internalType": "address" },
           { "name": "escrow", "type": "address", "internalType": "address" },
           { "name": "asset", "type": "address", "internalType": "address" },
-          {
-            "name": "instrumentType",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "createdAt",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
+          { "name": "instrumentType", "type": "string", "internalType": "string" },
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" },
           { "name": "isActive", "type": "bool", "internalType": "bool" },
           { "name": "creator", "type": "address", "internalType": "address" },
-          {
-            "name": "targetRaise",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maturityDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "targetRaise", "type": "uint256", "internalType": "uint256" },
+          { "name": "maturityDate", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
@@ -216,13 +168,6 @@
     "name": "getPoolsByType",
     "inputs": [{ "name": "instrumentType", "type": "string", "internalType": "string" }],
     "outputs": [{ "name": "", "type": "address[]", "internalType": "address[]" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getRoleAdmin",
-    "inputs": [{ "name": "role", "type": "bytes32", "internalType": "bytes32" }],
-    "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
   },
   {
@@ -242,29 +187,13 @@
         "type": "tuple",
         "internalType": "struct IStableYieldTypes.PoolData",
         "components": [
-          {
-            "name": "poolAddress",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "escrowAddress",
-            "type": "address",
-            "internalType": "address"
-          },
+          { "name": "poolAddress", "type": "address", "internalType": "address" },
+          { "name": "escrowAddress", "type": "address", "internalType": "address" },
           { "name": "asset", "type": "address", "internalType": "address" },
           { "name": "name", "type": "string", "internalType": "string" },
-          {
-            "name": "minInvestment",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
           { "name": "isActive", "type": "bool", "internalType": "bool" },
-          {
-            "name": "createdAt",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
@@ -279,38 +208,10 @@
   },
   {
     "type": "function",
-    "name": "grantRole",
-    "inputs": [
-      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "account", "type": "address", "internalType": "address" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "hasRole",
-    "inputs": [
-      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "account", "type": "address", "internalType": "address" }
-    ],
-    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "initialize",
     "inputs": [
-      {
-        "name": "_accessManager",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_timelockController",
-        "type": "address",
-        "internalType": "address"
-      }
+      { "name": "_accessManager", "type": "address", "internalType": "address" },
+      { "name": "_timelockController", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -332,13 +233,21 @@
   {
     "type": "function",
     "name": "isApprovedImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isLockedPool",
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "isManagedLockedPool",
+    "inputs": [{ "name": "pool", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
@@ -365,6 +274,13 @@
   },
   {
     "type": "function",
+    "name": "lockedPoolAtIndex",
+    "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "pausePool",
     "inputs": [{ "name": "pool", "type": "address", "internalType": "address" }],
     "outputs": [],
@@ -376,6 +292,18 @@
     "inputs": [],
     "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "registerLockedPool",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "escrowAddress", "type": "address", "internalType": "address" },
+      { "name": "asset", "type": "address", "internalType": "address" },
+      { "name": "name", "type": "string", "internalType": "string" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -391,28 +319,12 @@
           { "name": "manager", "type": "address", "internalType": "address" },
           { "name": "escrow", "type": "address", "internalType": "address" },
           { "name": "asset", "type": "address", "internalType": "address" },
-          {
-            "name": "instrumentType",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "createdAt",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
+          { "name": "instrumentType", "type": "string", "internalType": "string" },
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" },
           { "name": "isActive", "type": "bool", "internalType": "bool" },
           { "name": "creator", "type": "address", "internalType": "address" },
-          {
-            "name": "targetRaise",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maturityDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "targetRaise", "type": "uint256", "internalType": "uint256" },
+          { "name": "maturityDate", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
@@ -428,44 +340,14 @@
         "type": "tuple",
         "internalType": "struct IStableYieldTypes.PoolData",
         "components": [
-          {
-            "name": "poolAddress",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "escrowAddress",
-            "type": "address",
-            "internalType": "address"
-          },
+          { "name": "poolAddress", "type": "address", "internalType": "address" },
+          { "name": "escrowAddress", "type": "address", "internalType": "address" },
           { "name": "asset", "type": "address", "internalType": "address" },
           { "name": "name", "type": "string", "internalType": "string" },
-          {
-            "name": "minInvestment",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
           { "name": "isActive", "type": "bool", "internalType": "bool" },
-          {
-            "name": "createdAt",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
+          { "name": "createdAt", "type": "uint256", "internalType": "uint256" }
         ]
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "renounceRole",
-    "inputs": [
-      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-      {
-        "name": "callerConfirmation",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -481,36 +363,14 @@
   {
     "type": "function",
     "name": "revokeImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "revokeRole",
-    "inputs": [
-      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "account", "type": "address", "internalType": "address" }
-    ],
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "setAccessManager",
-    "inputs": [
-      {
-        "name": "_accessManager",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "_accessManager", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -534,18 +394,10 @@
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "outputs": [
       { "name": "poolAddress", "type": "address", "internalType": "address" },
-      {
-        "name": "escrowAddress",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "escrowAddress", "type": "address", "internalType": "address" },
       { "name": "asset", "type": "address", "internalType": "address" },
       { "name": "name", "type": "string", "internalType": "string" },
-      {
-        "name": "minInvestment",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
+      { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
       { "name": "isActive", "type": "bool", "internalType": "bool" },
       { "name": "createdAt", "type": "uint256", "internalType": "uint256" }
     ],
@@ -553,16 +405,16 @@
   },
   {
     "type": "function",
-    "name": "supportsInterface",
-    "inputs": [{ "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }],
-    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "name": "timelockController",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
-    "name": "timelockController",
+    "name": "totalLockedPools",
     "inputs": [],
-    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
@@ -588,28 +440,6 @@
   },
   {
     "type": "function",
-    "name": "updateAssetMetadata",
-    "inputs": [
-      { "name": "asset", "type": "address", "internalType": "address" },
-      { "name": "name", "type": "string", "internalType": "string" },
-      { "name": "country", "type": "string", "internalType": "string" },
-      { "name": "region", "type": "string", "internalType": "string" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "updatePoolCategory",
-    "inputs": [
-      { "name": "pool", "type": "address", "internalType": "address" },
-      { "name": "newCategory", "type": "string", "internalType": "string" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "updatePoolStatus",
     "inputs": [
       { "name": "pool", "type": "address", "internalType": "address" },
@@ -622,11 +452,7 @@
     "type": "function",
     "name": "upgradeToAndCall",
     "inputs": [
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "internalType": "address"
-      },
+      { "name": "newImplementation", "type": "address", "internalType": "address" },
       { "name": "data", "type": "bytes", "internalType": "bytes" }
     ],
     "outputs": [],
@@ -662,94 +488,30 @@
     "type": "event",
     "name": "AssetApproved",
     "inputs": [
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "symbol",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "country",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "region",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AssetApproved",
-    "inputs": [
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "asset", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "name", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "symbol", "type": "string", "indexed": false, "internalType": "string" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "AssetMetadataUpdated",
-    "inputs": [
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "asset", "type": "address", "indexed": true, "internalType": "address" }],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "AssetRevoked",
-    "inputs": [
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
+    "inputs": [{ "name": "asset", "type": "address", "indexed": true, "internalType": "address" }],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "FactoryUpdated",
     "inputs": [
-      {
-        "name": "oldFactory",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "newFactory",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "oldFactory", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "newFactory", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -757,12 +519,7 @@
     "type": "event",
     "name": "ImplementationApproved",
     "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "implementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -770,50 +527,33 @@
     "type": "event",
     "name": "ImplementationRevoked",
     "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "implementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
     "name": "Initialized",
+    "inputs": [{ "name": "version", "type": "uint64", "indexed": false, "internalType": "uint64" }],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LockedPoolRegistered",
     "inputs": [
-      {
-        "name": "version",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      }
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "escrowAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "asset", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "name", "type": "string", "indexed": false, "internalType": "string" }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "PoolCategoryUpdated",
+    "name": "LockedPoolStatusUpdated",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "oldCategory",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "newCategory",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "isActive", "type": "bool", "indexed": false, "internalType": "bool" }
     ],
     "anonymous": false
   },
@@ -821,36 +561,11 @@
     "type": "event",
     "name": "PoolRegistered",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "manager",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "instrumentType",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      },
-      {
-        "name": "creator",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "manager", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "asset", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "instrumentType", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "creator", "type": "address", "indexed": false, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -858,93 +573,8 @@
     "type": "event",
     "name": "PoolStatusUpdated",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "isActive",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "RoleAdminChanged",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "previousAdminRole",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "newAdminRole",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "RoleGranted",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "RoleRevoked",
-    "inputs": [
-      {
-        "name": "role",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "sender",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "isActive", "type": "bool", "indexed": false, "internalType": "bool" }
     ],
     "anonymous": false
   },
@@ -952,30 +582,10 @@
     "type": "event",
     "name": "StableYieldPoolRegistered",
     "inputs": [
-      {
-        "name": "poolAddress",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "escrowAddress",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
-      }
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "escrowAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "asset", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "name", "type": "string", "indexed": false, "internalType": "string" }
     ],
     "anonymous": false
   },
@@ -983,18 +593,8 @@
     "type": "event",
     "name": "StableYieldPoolStatusUpdated",
     "inputs": [
-      {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "isActive",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
-      }
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "isActive", "type": "bool", "indexed": false, "internalType": "bool" }
     ],
     "anonymous": false
   },
@@ -1002,23 +602,9 @@
     "type": "event",
     "name": "Upgraded",
     "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "implementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
-  },
-  { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
-  {
-    "type": "error",
-    "name": "AccessControlUnauthorizedAccount",
-    "inputs": [
-      { "name": "account", "type": "address", "internalType": "address" },
-      { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
-    ]
   },
   {
     "type": "error",
@@ -1028,13 +614,7 @@
   {
     "type": "error",
     "name": "ERC1967InvalidImplementation",
-    "inputs": [
-      {
-        "name": "implementation",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "inputs": [{ "name": "implementation", "type": "address", "internalType": "address" }]
   },
   { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
   { "type": "error", "name": "FailedCall", "inputs": [] },

@@ -1,6 +1,11 @@
 import { Controller, Post, Get, Delete, Body, Param, Query, Patch } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { CreatePoolDto, ConfirmPoolDeploymentDto } from './dtos/create-pool.dto';
+import {
+  CreatePoolDto,
+  ConfirmPoolDeploymentDto,
+  UpdateLockTierDto,
+  AddLockTierDto,
+} from './dtos/create-pool.dto';
 import {
   PausePoolDto,
   ApproveAssetDto,
@@ -365,5 +370,47 @@ export class AdminController {
   @Post('pools/:poolAddress/close')
   async closePool(@Param('poolAddress') poolAddress: string) {
     return this.adminService.closePool(poolAddress);
+  }
+
+  // ========== LOCKED POOL MANAGEMENT ==========
+
+  /**
+   * Get locked pool detail with tier statistics
+   * GET /api/v1/admin/locked-pools/:poolAddress
+   */
+  @Get('locked-pools/:poolAddress')
+  async getLockedPoolDetail(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.getLockedPoolDetail(poolAddress);
+  }
+
+  /**
+   * Update a lock tier configuration
+   * PATCH /api/v1/admin/locked-pools/:poolAddress/tiers/:tierIndex
+   */
+  @Patch('locked-pools/:poolAddress/tiers/:tierIndex')
+  async updateLockTier(
+    @Param('poolAddress') poolAddress: string,
+    @Param('tierIndex') tierIndex: string,
+    @Body() dto: UpdateLockTierDto,
+  ) {
+    return this.adminService.updateLockTier(poolAddress, parseInt(tierIndex, 10), dto);
+  }
+
+  /**
+   * Add a new lock tier to an existing locked pool
+   * POST /api/v1/admin/locked-pools/:poolAddress/tiers
+   */
+  @Post('locked-pools/:poolAddress/tiers')
+  async addLockTier(@Param('poolAddress') poolAddress: string, @Body() dto: AddLockTierDto) {
+    return this.adminService.addLockTier(poolAddress, dto);
+  }
+
+  /**
+   * Get all positions for a locked pool
+   * GET /api/v1/admin/locked-pools/:poolAddress/positions
+   */
+  @Get('locked-pools/:poolAddress/positions')
+  async getLockedPoolPositions(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.getLockedPoolPositions(poolAddress);
   }
 }

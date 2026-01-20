@@ -45,11 +45,14 @@ export class DepositIndexer implements OnModuleInit {
   }
 
   private async indexDeposits(chainId: number) {
+    // Note: LOCKED pools have their own indexer (LockedPositionIndexer)
+    // so we exclude them here
     const pools = await this.prisma.pool.findMany({
       where: {
         chainId,
         isActive: true,
         poolAddress: { not: '' },
+        poolType: { not: 'LOCKED' },
       },
     });
 

@@ -25,14 +25,14 @@ export class CollectFeesDto {
 }
 
 export enum FeeType {
-  MANAGEMENT = 'MANAGEMENT',
-  PERFORMANCE = 'PERFORMANCE',
-  WITHDRAWAL = 'WITHDRAWAL',
+  TRANSACTION = 'TRANSACTION',
+  EARLY_EXIT_PENALTY = 'EARLY_EXIT_PENALTY',
 }
 
 export enum PoolTypeEnum {
   SINGLE_ASSET = 'SINGLE_ASSET',
   STABLE_YIELD = 'STABLE_YIELD',
+  LOCKED = 'LOCKED',
 }
 
 export class UpdateFeeConfigDto {
@@ -40,11 +40,16 @@ export class UpdateFeeConfigDto {
   poolType: PoolTypeEnum;
 
   @IsEnum(FeeType)
-  feeType: FeeType;
+  @IsOptional()
+  feeType?: FeeType;
 
   @IsNumber()
   @Min(0)
   rate: number; // basis points
+
+  @IsString()
+  @IsOptional()
+  poolAddress?: string; // For pool-specific fee config
 }
 
 export class EmergencyActionDto {
@@ -59,4 +64,3 @@ export class EmergencyActionDto {
   @IsOptional()
   poolAddress?: string; // For pool-specific actions
 }
-
