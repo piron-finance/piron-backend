@@ -13,7 +13,6 @@ import {
 import {
   PausePoolDto,
   ApproveAssetDto,
-  ProcessMaturityDto,
   CloseEpochDto,
   CancelPoolDto,
   DistributeCouponDto,
@@ -31,15 +30,10 @@ import { UpdatePoolMetadataDto } from './dtos/update-pool-metadata.dto';
 import { AllocateToSPVDto, RebalancePoolReservesDto } from './dtos/spv-allocation.dto';
 import { ethers } from 'ethers';
 import ManagerABI from '../../contracts/abis/Manager.json';
-import PoolRegistryABI from '../../contracts/abis/PoolRegistry.json';
-import StableYieldManagerABI from '../../contracts/abis/StableYieldManager.json';
-import AccessManagerABI from '../../contracts/abis/AccessManager.json';
 import { CONTRACT_ADDRESSES } from '../../contracts/addresses';
 
 // Contract constants matching StableYieldManager
 const RESERVE_RATIO_BPS = 1000; // 10% - hardcoded in contract
-const RESERVE_TOLERANCE_BPS = 200; // 2%
-const MIN_RESERVE_BPS = 800; // 8% (10% - 2%)
 
 @Injectable()
 export class AdminService {
@@ -57,10 +51,9 @@ export class AdminService {
    * Create a new pool (stores metadata + returns unsigned transaction)
    */
   async createPool(dto: CreatePoolDto, chainId = 84532) {
-    // 1. Validate inputs
     await this.poolValidator.validate(dto, chainId);
 
-    // 2. Clean up any old pending pools with empty addresses (failed/cancelled deployments)
+    // Clean up any old pending pools with empty addresses (failed/cancelled deployments)
     const deletedCount = await this.prisma.pool.deleteMany({
       where: {
         chainId,
@@ -74,23 +67,22 @@ export class AdminService {
       );
     }
 
-    // 3. Get asset details
     const assetContract = this.blockchain.getERC20(chainId, dto.asset);
     const [assetSymbol, assetDecimals] = await Promise.all([
       assetContract.symbol(),
       assetContract.decimals(),
     ]);
 
-    // 4. Store pool metadata in database with PENDING_DEPLOYMENT status
+    // Store pool metadata in database with PENDING_DEPLOYMENT status
     const pool = await this.prisma.pool.create({
       data: {
         chainId,
-        poolAddress: '', // Will be updated after deployment
+        poolAddress: '',
         poolType: dto.poolType,
         name: dto.name,
         description: dto.description,
-        managerAddress: '', // Will be updated
-        escrowAddress: '', // Will be updated
+        managerAddress: '',
+        escrowAddress: '',
         assetAddress: dto.asset.toLowerCase(),
         assetSymbol,
         assetDecimals: Number(assetDecimals),
@@ -100,6 +92,13 @@ export class AdminService {
         maturityDate: dto.maturityDate ? new Date(dto.maturityDate) : null,
         discountRate: dto.discountRate,
         instrumentType: dto.instrumentType,
+        // Single-Asset specific fields
+        withdrawalFeeBps: dto.withdrawalFeeBps,
+        minimumFundingThreshold: dto.minimumFundingThreshold,
+        couponDates: dto.couponDates || [],
+        couponRates: dto.couponRates || [],
+        // SPV address (Stable Yield & Locked)
+        spvAddress: dto.spvAddress,
         status: 'PENDING_DEPLOYMENT',
         isActive: true,
         isFeatured: false,
@@ -129,6 +128,11 @@ export class AdminService {
       name: dto.name,
       symbol: dto.symbol,
       spvAddress: dto.spvAddress,
+      // Single-Asset specific
+      couponDates: dto.couponDates,
+      couponRates: dto.couponRates,
+      minimumFundingThreshold: dto.minimumFundingThreshold,
+      withdrawalFeeBps: dto.withdrawalFeeBps,
       // Locked pool specific
       initialTiers: dto.initialTiers?.map((tier) => ({
         durationDays: tier.durationDays,
@@ -145,14 +149,12 @@ export class AdminService {
     return {
       poolId: pool.id,
       pool: {
-        // Core identifiers
         id: pool.id,
         chainId: pool.chainId,
-        poolAddress: pool.poolAddress, // Empty until deployed
+        poolAddress: pool.poolAddress,
         poolType: pool.poolType,
         status: pool.status,
 
-        // Pool metadata
         name: pool.name,
         description: pool.description,
         issuer: pool.issuer,
@@ -163,12 +165,10 @@ export class AdminService {
         securityType: pool.securityType,
         tags: pool.tags,
 
-        // Asset info
         assetAddress: pool.assetAddress,
         assetSymbol,
         assetDecimals: Number(assetDecimals),
 
-        // Pool parameters
         minInvestment: pool.minInvestment,
         targetRaise: pool.targetRaise,
         epochEndTime: pool.epochEndTime,
@@ -177,12 +177,10 @@ export class AdminService {
         instrumentType: pool.instrumentType,
         spvAddress: pool.spvAddress,
 
-        // Timestamps
         createdAt: pool.createdAt,
         updatedAt: pool.updatedAt,
         createdOnChain: pool.createdOnChain, // Will be updated by watcher
 
-        // Flags
         isActive: pool.isActive,
         isFeatured: pool.isFeatured,
       },
@@ -401,7 +399,6 @@ export class AdminService {
   }
 
   async approveAsset(dto: ApproveAssetDto, chainId = 84532) {
-    const addresses = this.blockchain.getProvider(chainId);
     const poolRegistry = this.blockchain.getPoolRegistry(chainId);
 
     const data = poolRegistry.interface.encodeFunctionData('approveAsset', [
@@ -1186,7 +1183,11 @@ export class AdminService {
         if (!acc[tx.asset]) {
           acc[tx.asset] = { collected: 0, withdrawn: 0 };
         }
-        if (tx.type === 'FEE_COLLECTION' || tx.type === 'PROTOCOL_REVENUE' || tx.type === 'PENALTY_COLLECTION') {
+        if (
+          tx.type === 'FEE_COLLECTION' ||
+          tx.type === 'PROTOCOL_REVENUE' ||
+          tx.type === 'PENALTY_COLLECTION'
+        ) {
           acc[tx.asset].collected += Number(tx.amount);
         } else if (tx.type === 'WITHDRAWAL') {
           acc[tx.asset].withdrawn += Number(tx.amount);
@@ -2381,15 +2382,10 @@ export class AdminService {
 
     // Calculate per-tier statistics
     const tierStats = pool.lockTiers.map((tier) => {
-      const tierPositions = pool.lockedPositions.filter(
-        (pos) => pos.tierId === tier.id,
-      );
+      const tierPositions = pool.lockedPositions.filter((pos) => pos.tierId === tier.id);
       const activeCount = tierPositions.filter((p) => p.status === 'ACTIVE').length;
       const maturedCount = tierPositions.filter((p) => p.status === 'MATURED').length;
-      const totalPrincipal = tierPositions.reduce(
-        (sum, p) => sum + Number(p.principal),
-        0,
-      );
+      const totalPrincipal = tierPositions.reduce((sum, p) => sum + Number(p.principal), 0);
 
       return {
         tier: {
@@ -2599,7 +2595,9 @@ export class AdminService {
     ]);
 
     this.logger.log(
-      `New lock tier added to pool ${pool.name}: ${dto.durationDays} days @ ${dto.apyBps / 100}% APY`,
+      `New lock tier added to pool ${pool.name}: ${dto.durationDays} days @ ${
+        dto.apyBps / 100
+      }% APY`,
     );
 
     return {

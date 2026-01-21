@@ -83,9 +83,56 @@ export class PoolCreationValidator {
       }
     }
 
-    // Validate interest rate for INTEREST_BEARING instruments
+    // Validate coupon arrays for INTEREST_BEARING instruments
     if (dto.instrumentType === 'INTEREST_BEARING') {
-      // Interest rate validation can be added here if needed
+      // If coupon dates provided, rates must match
+      if (dto.couponDates && dto.couponDates.length > 0) {
+        if (!dto.couponRates || dto.couponRates.length !== dto.couponDates.length) {
+          throw new BadRequestException('couponRates must have the same length as couponDates');
+        }
+
+        // Validate coupon dates are in the future and before maturity
+        const now = Math.floor(Date.now() / 1000);
+        const maturityTs = Math.floor(new Date(dto.maturityDate!).getTime() / 1000);
+
+        for (let i = 0; i < dto.couponDates.length; i++) {
+          if (dto.couponDates[i] <= now) {
+            throw new BadRequestException(`couponDates[${i}] must be in the future`);
+          }
+          if (dto.couponDates[i] >= maturityTs) {
+            throw new BadRequestException(`couponDates[${i}] must be before maturity date`);
+          }
+          if (dto.couponRates[i] < 0 || dto.couponRates[i] > 10000) {
+            throw new BadRequestException(
+              `couponRates[${i}] must be between 0 and 10000 basis points`,
+            );
+          }
+        }
+
+        // Ensure dates are in ascending order
+        for (let i = 1; i < dto.couponDates.length; i++) {
+          if (dto.couponDates[i] <= dto.couponDates[i - 1]) {
+            throw new BadRequestException('couponDates must be in ascending order');
+          }
+        }
+      }
+    }
+
+    // Validate withdrawalFeeBps if provided
+    if (
+      dto.withdrawalFeeBps !== undefined &&
+      (dto.withdrawalFeeBps < 0 || dto.withdrawalFeeBps > 10000)
+    ) {
+      throw new BadRequestException('withdrawalFeeBps must be between 0 and 10000 basis points');
+    }
+
+    if (
+      dto.minimumFundingThreshold !== undefined &&
+      (dto.minimumFundingThreshold < 0 || dto.minimumFundingThreshold > 10000)
+    ) {
+      throw new BadRequestException(
+        'minimumFundingThreshold must be between 0 and 10000 basis points (0-100%)',
+      );
     }
   }
 

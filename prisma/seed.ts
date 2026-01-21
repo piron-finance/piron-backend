@@ -5,7 +5,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...\n');
 
+  // ============================================================================
+  // NETWORKS
+  // ============================================================================
   console.log('📡 Creating networks...');
+
   const baseSepolia = await prisma.network.upsert({
     where: { chainId: 84532 },
     update: {},
@@ -30,7 +34,7 @@ async function main() {
       rpcUrl: 'https://mainnet.base.org',
       explorerUrl: 'https://basescan.org',
       isTestnet: false,
-      isActive: true,
+      isActive: false,
       lastIndexedBlock: BigInt(0),
       indexerStatus: 'STOPPED',
     },
@@ -38,55 +42,79 @@ async function main() {
 
   console.log(`  ✅ Created ${baseSepolia.name} and ${baseMainnet.name}\n`);
 
+  // ============================================================================
+  // ASSETS (Base Sepolia)
+  // ============================================================================
   console.log('💰 Creating assets...');
-  const usdc = await prisma.asset.upsert({
+
+  // MockUSDC - Our test token (deployed with contracts)
+  const mockUSDC = await prisma.asset.upsert({
     where: {
-      chainId_contractAddress: {
+      chainId_address: {
         chainId: 84532,
-        contractAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+        address: '0x517e901cae0c557029309a11e400a5bcc3bb65c0',
       },
     },
     update: {},
     create: {
       chainId: 84532,
-      contractAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+      address: '0x517e901cae0c557029309a11e400a5bcc3bb65c0',
+      symbol: 'MockUSDC',
+      name: 'Mock USD Coin',
+      decimals: 6,
+      isApproved: true,
+    },
+  });
+
+  // USDC - Base Sepolia USDC
+  const usdc = await prisma.asset.upsert({
+    where: {
+      chainId_address: {
+        chainId: 84532,
+        address: '0xdb787674289f636e96864de93c952d0390b5bc58',
+      },
+    },
+    update: {},
+    create: {
+      chainId: 84532,
+      address: '0xdb787674289f636e96864de93c952d0390b5bc58',
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      isActive: true,
       isApproved: true,
-      riskRating: 'LOW',
     },
   });
 
-  const mockUSDC = await prisma.asset.upsert({
+  // cNGN - Naira stablecoin
+  const cngn = await prisma.asset.upsert({
     where: {
-      chainId_contractAddress: {
+      chainId_address: {
         chainId: 84532,
-        contractAddress: '0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa',
+        address: '0x929a08903c22440182646bb450a67178be402f7f',
       },
     },
     update: {},
     create: {
       chainId: 84532,
-      contractAddress: '0x2DD9A8b2c1b73A607ddF16814338c4b942275DDa',
-      symbol: 'MockUSDC',
-      name: 'Mock USD Coin',
-      decimals: 18,
-      isActive: true,
+      address: '0x929a08903c22440182646bb450a67178be402f7f',
+      symbol: 'cNGN',
+      name: 'cNGN Stablecoin',
+      decimals: 6,
       isApproved: true,
-      riskRating: 'LOW',
     },
   });
 
-  console.log(`  ✅ Created ${usdc.symbol} and ${mockUSDC.symbol}\n`);
+  console.log(`  ✅ Created ${mockUSDC.symbol}, ${usdc.symbol}, and ${cngn.symbol}\n`);
 
+  // ============================================================================
+  // SUMMARY
+  // ============================================================================
   console.log('═'.repeat(60));
   console.log('✅ Seed completed successfully!');
   console.log('═'.repeat(60));
   console.log('\n📊 Summary:');
-  console.log(`   Networks: 2`);
-  console.log(`   Assets: 2`);
+  console.log(`   Networks: 2 (Base Sepolia active, Base Mainnet inactive)`);
+  console.log(`   Assets: 3 (MockUSDC, USDC, cNGN)`);
   console.log(`   Pools: 0 (create via admin dashboard)`);
   console.log(`   Users: 0 (will register via frontend)`);
   console.log('\n💡 Next steps:');

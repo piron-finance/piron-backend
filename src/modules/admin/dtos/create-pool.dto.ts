@@ -64,6 +64,26 @@ export class CreatePoolDto {
   @IsOptional()
   epochEndTime?: string; // When funding period ends (Single-Asset only)
 
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(10000)
+  withdrawalFeeBps?: number; //basis pts (single asset excls)
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(10000)
+  minimumFundingThreshold?: number; // BPS: 8000 = 80% of targetRaise required
+
+  @IsArray()
+  @IsOptional()
+  couponDates?: number[]; // Unix timestamps for coupon payment dates
+
+  @IsArray()
+  @IsOptional()
+  couponRates?: number[]; // Basis points for each coupon (e.g., 200 = 2%)
+
   @IsDateString()
   @IsOptional()
   maturityDate?: string; // When instrument matures (Single-Asset only)
