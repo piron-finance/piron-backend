@@ -104,9 +104,11 @@ export class PoolCreationWatcher implements OnModuleInit {
           getPoolData = (addr) => registry.getStableYieldPoolData(addr);
           break;
         case 'LOCKED':
+          // For locked pools, use LockedPoolManager.getPoolConfig instead of registry
+          const lockedManager = this.blockchain.getLockedPoolManager(pool.chainId);
           totalPools = await registry.totalLockedPools();
           getPoolAtIndex = (i) => registry.getLockedPoolAtIndex(i);
-          getPoolData = (addr) => registry.getLockedPoolData(addr);
+          getPoolData = (addr) => lockedManager.getPoolConfig(addr);
           break;
         case 'SINGLE_ASSET':
         default:
@@ -135,12 +137,14 @@ export class PoolCreationWatcher implements OnModuleInit {
             this.logger.log(`✅ Found deployed pool: ${poolAddress} for pending pool ${pool.id}`);
 
             // Update database with manager/escrow/spv
+            // Note: Registry returns escrowAddress for StableYield, escrow for others
+            const escrowAddr = poolInfo.escrowAddress || poolInfo.escrow || '';
             await this.prisma.pool.update({
               where: { id: pool.id },
               data: {
                 poolAddress: poolAddress.toLowerCase(),
                 managerAddress: poolInfo.manager?.toLowerCase() || '',
-                escrowAddress: poolInfo.escrow?.toLowerCase() || '',
+                escrowAddress: escrowAddr.toLowerCase(),
                 spvAddress: poolInfo.spvAddress?.toLowerCase() || pool.spvAddress,
                 status: pool.poolType === 'LOCKED' ? 'FUNDING' : 'FUNDING',
                 createdOnChain: new Date(creationTime * 1000),

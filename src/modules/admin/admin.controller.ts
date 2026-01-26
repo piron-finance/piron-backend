@@ -92,6 +92,15 @@ export class AdminController {
     return this.adminService.unpausePool(poolAddress);
   }
 
+  /**
+   * Get all paused pools
+   * GET /api/v1/admin/pools/paused
+   */
+  @Get('pools/paused')
+  async getPausedPools() {
+    return this.adminService.getPausedPools();
+  }
+
   @Post('assets/approve')
   async approveAsset(@Body() dto: ApproveAssetDto) {
     return this.adminService.approveAsset(dto);
@@ -103,11 +112,36 @@ export class AdminController {
   }
 
   @Get('activity')
-  async getActivityLog(@Query('page') page?: string, @Query('limit') limit?: string) {
+  async getActivityLog(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('filter') filter?: string,
+  ) {
     return this.adminService.getActivityLog(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
+      filter,
     );
+  }
+
+  // ========== SYSTEM ALERTS ==========
+
+  /**
+   * Get system alerts
+   * GET /api/v1/admin/alerts
+   */
+  @Get('alerts')
+  async getAlerts() {
+    return this.adminService.getAlerts();
+  }
+
+  /**
+   * Acknowledge an alert
+   * POST /api/v1/admin/alerts/:alertId/acknowledge
+   */
+  @Post('alerts/:alertId/acknowledge')
+  async acknowledgeAlert(@Param('alertId') alertId: string, @Body() body: { userId: string }) {
+    return this.adminService.acknowledgeAlert(alertId, body.userId);
   }
 
   /**
@@ -166,12 +200,39 @@ export class AdminController {
   // ========== ROLE MANAGEMENT ==========
 
   /**
+   * Get all roles
+   * GET /api/v1/admin/roles
+   */
+  @Get('roles')
+  async getRoles() {
+    return this.adminService.getRoles();
+  }
+
+  /**
    * Get role metrics
    * GET /api/v1/admin/roles/metrics
    */
   @Get('roles/metrics')
   async getRoleMetrics() {
     return this.adminService.getRoleMetrics();
+  }
+
+  /**
+   * Grant role
+   * POST /api/v1/admin/roles/grant
+   */
+  @Post('roles/grant')
+  async grantRole(@Body() body: { address: string; role: string }) {
+    return this.adminService.grantRole(body);
+  }
+
+  /**
+   * Revoke role
+   * POST /api/v1/admin/roles/revoke
+   */
+  @Post('roles/revoke')
+  async revokeRole(@Body() body: { address: string; role: string }) {
+    return this.adminService.revokeRole(body);
   }
 
   /**
@@ -318,6 +379,15 @@ export class AdminController {
   @Get('system/status')
   async getSystemStatus() {
     return this.adminService.getSystemStatus();
+  }
+
+  /**
+   * Get known addresses mapping
+   * GET /api/v1/admin/addresses/known
+   */
+  @Get('addresses/known')
+  async getKnownAddresses() {
+    return this.adminService.getKnownAddresses();
   }
 
   // ========== STABLE YIELD SPECIFIC: SPV FUND MANAGEMENT ==========

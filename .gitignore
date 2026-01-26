@@ -40,6 +40,7 @@ uploads/
 road/
 admin-need.md
 API_DOCUMENTATION.md
+FRONTEND_API_DOCUMENTATION.md
 
 # Prisma
 # Note: Keep migrations in git for deployment

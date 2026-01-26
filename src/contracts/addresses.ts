@@ -31,6 +31,9 @@ interface NetworkContracts {
   // Locked Pool
   lockedPoolManager: string;
 
+  // Treasury (defaults to timelockController if not set)
+  treasury?: string;
+
   // Assets
   mockUSDC?: string;
   usdc?: string;

@@ -4,6 +4,7 @@ import { CONTRACT_ADDRESSES } from '../contracts/addresses';
 
 import ManagerABI from '../contracts/abis/Manager.json';
 import StableYieldManagerABI from '../contracts/abis/StableYieldManager.json';
+import StableYieldEscrowABI from '../contracts/abis/StableYieldEscrow.json';
 import LockedManagerABI from '../contracts/abis/LockedManager.json';
 import PoolRegistryABI from '../contracts/abis/PoolRegistry.json';
 import LiquidityPoolABI from '../contracts/abis/LiquidityPool.json';
@@ -185,6 +186,13 @@ export class BlockchainService {
   }
 
   /**
+   * Get StableYieldEscrow contract by escrow address
+   */
+  getStableYieldEscrow(chainId: number, escrowAddress: string): ethers.Contract {
+    return this.getContract(chainId, escrowAddress, StableYieldEscrowABI);
+  }
+
+  /**
    * Get LockedPool contract
    */
   getLockedPool(chainId: number, poolAddress: string): ethers.Contract {
@@ -237,6 +245,85 @@ export class BlockchainService {
   async getPoolTotalSupply(chainId: number, poolAddress: string, poolType: PoolType = 'SINGLE_ASSET'): Promise<bigint> {
     const pool = this.getPool(chainId, poolAddress, poolType);
     return await pool.totalSupply();
+  }
+
+  /**
+   * Get TVL for a pool based on pool type
+   * - Single Asset: totalRaised from Manager.getPoolData()
+   * - Stable Yield: NAV from StableYieldManager.calculatePoolNAV()
+   * - Locked: totalPrincipal from LockedPoolManager.getPoolMetrics()
+   */
+  async getPoolTVL(
+    chainId: number,
+    poolAddress: string,
+    poolType: PoolType,
+  ): Promise<{ tvl: bigint; breakdown?: Record<string, bigint> }> {
+    try {
+      switch (poolType) {
+        case 'STABLE_YIELD': {
+          const manager = this.getStableYieldManager(chainId);
+          const nav = await manager.calculatePoolNAV(poolAddress);
+          return { tvl: nav };
+        }
+
+        case 'LOCKED': {
+          const manager = this.getLockedPoolManager(chainId);
+          const metrics = await manager.getPoolMetrics(poolAddress);
+          return {
+            tvl: metrics.totalPrincipal,
+            breakdown: {
+              totalPrincipal: metrics.totalPrincipal,
+              activePositions: metrics.activePositions,
+            },
+          };
+        }
+
+        case 'SINGLE_ASSET':
+        default: {
+          const manager = this.getManager(chainId);
+          const poolData = await manager.getPoolData(poolAddress);
+          return {
+            tvl: poolData.totalRaised,
+            breakdown: {
+              totalRaised: poolData.totalRaised,
+            },
+          };
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Error getting TVL for pool ${poolAddress}: ${error.message}`);
+      // Fallback to totalAssets
+      const pool = this.getPool(chainId, poolAddress, poolType);
+      const totalAssets = await pool.totalAssets();
+      return { tvl: totalAssets };
+    }
+  }
+
+  /**
+   * Get escrow data for a Stable Yield pool
+   */
+  async getEscrowData(chainId: number, escrowAddress: string): Promise<{
+    poolReserves: bigint;
+    cashBuffer: bigint;
+    accruedFees: bigint;
+    totalFeesCollected: bigint;
+    totalBalance: bigint;
+  }> {
+    const escrow = this.getStableYieldEscrow(chainId, escrowAddress);
+    const [poolReserves, cashBuffer, accruedFees, totalFeesCollected, totalBalance] = await Promise.all([
+      escrow.getPoolReserves(),
+      escrow.getCashBuffer(),
+      escrow.getAccruedFees(),
+      escrow.getTotalFeesCollected(),
+      escrow.getTotalBalance(),
+    ]);
+    return {
+      poolReserves,
+      cashBuffer,
+      accruedFees,
+      totalFeesCollected,
+      totalBalance,
+    };
   }
 
   async getUserShares(chainId: number, poolAddress: string, userAddress: string, poolType: PoolType = 'SINGLE_ASSET'): Promise<bigint> {

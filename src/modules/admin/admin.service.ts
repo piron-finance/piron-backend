@@ -510,11 +510,23 @@ export class AdminService {
     };
   }
 
-  async getActivityLog(page = 1, limit = 20) {
+  async getActivityLog(page = 1, limit = 20, filter?: string) {
     const skip = (page - 1) * limit;
+
+    // Filter by category if provided
+    const categoryFilters: Record<string, string[]> = {
+      pools: ['createPool', 'closeEpoch', 'cancelPool', 'pausePool', 'unpausePool', 'updateAPY'],
+      roles: ['grantRole', 'revokeRole', 'updateRole'],
+      assets: ['approveAsset', 'revokeAsset', 'addAsset'],
+      emergency: ['emergencyPause', 'emergencyUnpause', 'forceCloseEpoch'],
+    };
+
+    const whereClause =
+      filter && categoryFilters[filter] ? { action: { in: categoryFilters[filter] } } : {};
 
     const [activities, total] = await Promise.all([
       this.prisma.auditLog.findMany({
+        where: whereClause,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -527,11 +539,47 @@ export class AdminService {
           },
         },
       }),
-      this.prisma.auditLog.count(),
+      this.prisma.auditLog.count({ where: whereClause }),
     ]);
 
+    // Enhance activities with target, poolName, and category
+    const enhancedActivities = await Promise.all(
+      activities.map(async (activity) => {
+        let poolName: string | null = null;
+        let target: string | null = activity.entity;
+        let category: string = 'other';
+
+        // Determine category based on action
+        for (const [cat, actions] of Object.entries(categoryFilters)) {
+          if (actions.includes(activity.action)) {
+            category = cat;
+            break;
+          }
+        }
+
+        // If entity looks like a pool address, try to get pool name
+        if (activity.entityId && /^0x[a-fA-F0-9]{40}$/.test(activity.entityId)) {
+          const pool = await this.prisma.pool.findFirst({
+            where: { poolAddress: activity.entityId.toLowerCase() },
+            select: { name: true },
+          });
+          if (pool) {
+            poolName = pool.name;
+            target = pool.name;
+          }
+        }
+
+        return {
+          ...activity,
+          target,
+          poolName,
+          category,
+        };
+      }),
+    );
+
     return {
-      activities,
+      activities: enhancedActivities,
       pagination: {
         page,
         limit,
@@ -1266,19 +1314,89 @@ export class AdminService {
    * Fees are now managed per-pool via StableYieldManager
    */
   async getFees(chainId = 84532) {
-    const addresses = CONTRACT_ADDRESSES[chainId];
-
     // Get fee config from StableYieldManager
     let defaultTransactionFee = 0;
     try {
       const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
-      const maxFee = await stableYieldManager.MAX_TRANSACTION_FEE();
-      defaultTransactionFee = Number(maxFee);
+      const defaultFeeBps = await stableYieldManager.defaultTransactionFeeBps();
+      defaultTransactionFee = Number(defaultFeeBps);
     } catch (error) {
       this.logger.warn(`Could not fetch fee config: ${error.message}`);
     }
 
-    // Get fee collection history
+    // Get all active pools with escrow addresses
+    const pools = await this.prisma.pool.findMany({
+      where: { chainId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        poolAddress: true,
+        poolType: true,
+        escrowAddress: true,
+        assetDecimals: true,
+      },
+    });
+
+    // Query on-chain fee data from escrow contracts
+    const poolFeeData: Array<{
+      poolId: string;
+      poolName: string;
+      poolAddress: string;
+      poolType: string;
+      accruedFees: string; // Unclaimed
+      totalFeesCollected: string; // Claimed
+      totalFees: string; // Total lifetime
+      feeBps: number;
+      decimals: number;
+    }> = [];
+
+    let totalAccruedFees = 0;
+    let totalCollectedFees = 0;
+
+    for (const pool of pools) {
+      if (pool.poolType === 'STABLE_YIELD') {
+        // Auto-fetch escrow address if missing
+        const escrowAddr = pool.escrowAddress || (await this.ensureEscrowAddress(pool, chainId));
+
+        if (escrowAddr) {
+          try {
+            const escrow = this.blockchain.getStableYieldEscrow(chainId, escrowAddr);
+            const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
+
+            const [accruedFees, totalFees, feeBps] = await Promise.all([
+              escrow.getAccruedFees(),
+              escrow.getTotalFeesCollected(), // This is total (claimed + unclaimed)
+              stableYieldManager.getPoolTransactionFee(pool.poolAddress),
+            ]);
+
+            const decimals = pool.assetDecimals;
+            const accruedNum = Number(accruedFees) / 10 ** decimals; // Unclaimed
+            const totalNum = Number(totalFees) / 10 ** decimals; // Total (claimed + unclaimed)
+            const collectedNum = totalNum - accruedNum; // Claimed = total - unclaimed
+
+            totalAccruedFees += accruedNum;
+            totalCollectedFees += collectedNum;
+
+            poolFeeData.push({
+              poolId: pool.id,
+              poolName: pool.name,
+              poolAddress: pool.poolAddress,
+              poolType: pool.poolType,
+              accruedFees: accruedNum.toFixed(2), // Unclaimed/pending
+              totalFeesCollected: collectedNum.toFixed(2), // Actually claimed
+              totalFees: totalNum.toFixed(2), // Total lifetime fees
+              feeBps: Number(feeBps),
+              decimals,
+            });
+          } catch (error) {
+            this.logger.warn(`Could not fetch fees for pool ${pool.name}: ${error.message}`);
+          }
+        }
+      }
+      // TODO: Add LOCKED pool fee tracking when fee manager is added
+    }
+
+    // Get fee collection history from DB
     const feeTransactions = await this.prisma.treasuryTransaction.findMany({
       where: {
         type: { in: ['FEE_COLLECTION', 'PENALTY_COLLECTION'] },
@@ -1287,35 +1405,55 @@ export class AdminService {
       take: 50,
     });
 
-    const totalCollected = feeTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
+    // Calculate fees by pool type
+    const feesByType: Record<
+      string,
+      { accruedFees: number; collectedFees: number; poolCount: number }
+    > = {
+      STABLE_YIELD: { accruedFees: 0, collectedFees: 0, poolCount: 0 },
+      LOCKED: { accruedFees: 0, collectedFees: 0, poolCount: 0 },
+      SINGLE_ASSET: { accruedFees: 0, collectedFees: 0, poolCount: 0 },
+    };
 
-    // Get per-pool fee stats
-    const poolFeeStats = await this.prisma.poolAnalytics.findMany({
-      where: {
-        totalPenaltiesCollected: { gt: 0 },
-      },
-      include: {
-        pool: {
-          select: { name: true, poolAddress: true, poolType: true },
-        },
-      },
-    });
+    for (const data of poolFeeData) {
+      const type = data.poolType;
+      if (feesByType[type]) {
+        feesByType[type].accruedFees += parseFloat(data.accruedFees);
+        feesByType[type].collectedFees += parseFloat(data.totalFeesCollected);
+        feesByType[type].poolCount++;
+      }
+    }
+
+    const byPoolType = Object.entries(feesByType).map(([poolType, data]) => ({
+      poolType,
+      accruedFees: data.accruedFees.toFixed(2),
+      collectedFees: data.collectedFees.toFixed(2),
+      poolCount: data.poolCount,
+    }));
 
     return {
       configuration: {
-        maxTransactionFeeBps: defaultTransactionFee,
-        note: 'Fees now configured per-pool via StableYieldManager.setPoolTransactionFee()',
+        defaultTransactionFeeBps: defaultTransactionFee,
+        defaultFeePercent: (defaultTransactionFee / 100).toFixed(2) + '%',
+        note: 'Fees configured per-pool via StableYieldManager.setPoolTransactionFee()',
       },
       summary: {
-        totalCollected: totalCollected.toString(),
-        transactionCount: feeTransactions.length,
+        totalAccruedFees: totalAccruedFees.toFixed(2),
+        totalCollectedFees: totalCollectedFees.toFixed(2),
+        pendingCollection: totalAccruedFees.toFixed(2),
+        lastUpdated: new Date().toISOString(),
       },
-      byPool: poolFeeStats.map((stat) => ({
-        poolName: stat.pool.name,
-        poolAddress: stat.pool.poolAddress,
-        poolType: stat.pool.poolType,
-        penaltiesCollected: stat.totalPenaltiesCollected.toString(),
-        interestPaid: stat.totalInterestPaid?.toString() || '0',
+      byPoolType,
+      byPool: poolFeeData.map((data) => ({
+        poolId: data.poolId,
+        poolName: data.poolName,
+        poolAddress: data.poolAddress,
+        poolType: data.poolType,
+        accruedFees: data.accruedFees,
+        totalFeesCollected: data.totalFeesCollected,
+        feeBps: data.feeBps,
+        feePercent: (data.feeBps / 100).toFixed(2) + '%',
+        canCollect: parseFloat(data.accruedFees) > 0,
       })),
       recentCollections: feeTransactions.map((tx) => ({
         ...tx,
@@ -1325,7 +1463,7 @@ export class AdminService {
   }
 
   /**
-   * Set transaction fee for a specific pool
+   * Collect fees from a pool's escrow to treasury
    */
   async collectFees(dto: CollectFeesDto, chainId = 84532) {
     const pool = await this.prisma.pool.findFirst({
@@ -1339,26 +1477,66 @@ export class AdminService {
       throw new NotFoundException('Pool not found');
     }
 
-    // Fees are collected automatically on transactions now
-    // This endpoint can be used to query current fee status
     const addresses = CONTRACT_ADDRESSES[chainId];
 
     if (pool.poolType === 'STABLE_YIELD') {
-      const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
-      const feeBps = await stableYieldManager.getPoolTransactionFee(pool.poolAddress);
+      // Auto-fetch escrow address if missing
+      const escrowAddr = pool.escrowAddress || (await this.ensureEscrowAddress(pool, chainId));
+
+      if (!escrowAddr) {
+        throw new NotFoundException('Escrow address not found for pool');
+      }
+
+      const escrow = this.blockchain.getStableYieldEscrow(chainId, escrowAddr);
+
+      // Get current accrued fees
+      const accruedFees = await escrow.getAccruedFees();
+      const accruedFeesNum = Number(accruedFees) / 10 ** pool.assetDecimals;
+
+      if (accruedFeesNum === 0) {
+        return {
+          pool: {
+            name: pool.name,
+            address: pool.poolAddress,
+            escrowAddress: escrowAddr,
+            type: pool.poolType,
+          },
+          accruedFees: '0',
+          message: 'No fees to collect',
+        };
+      }
+
+      // Build transaction to transfer fees to treasury
+      // Treasury address defaults to timelockController (which acts as protocol treasury)
+      const treasuryAddress = addresses.treasury || addresses.timelockController;
+      if (!treasuryAddress) {
+        throw new Error('Treasury address not configured');
+      }
+
+      const txData = escrow.interface.encodeFunctionData('transferFeesToTreasury', [
+        treasuryAddress,
+      ]);
 
       return {
         pool: {
           name: pool.name,
           address: pool.poolAddress,
+          escrowAddress: escrowAddr,
           type: pool.poolType,
         },
-        currentFeeBps: Number(feeBps),
-        currentFeePercent: (Number(feeBps) / 100).toFixed(2),
-        note: 'Fees are collected automatically on deposits/withdrawals. Use setPoolTransactionFee to update.',
+        accruedFees: accruedFeesNum.toFixed(2),
+        treasuryAddress,
+        transactionData: {
+          to: escrowAddr,
+          data: txData,
+          value: '0',
+        },
+        message: `Sign this transaction to collect ${accruedFeesNum.toFixed(
+          2,
+        )} in fees to treasury`,
       };
     } else if (pool.poolType === 'LOCKED') {
-      // For locked pools, penalties are collected on early exit
+      // For locked pools, penalties are collected on early exit automatically
       const analytics = await this.prisma.poolAnalytics.findUnique({
         where: { poolId: pool.id },
       });
@@ -1861,11 +2039,51 @@ export class AdminService {
   // ========== ENHANCED POOL DETAIL (ADMIN DASHBOARD) ==========
 
   /**
+   * Fetch and update escrow address from registry if missing
+   */
+  private async ensureEscrowAddress(
+    pool: { id: string; poolAddress: string; poolType: string; escrowAddress: string | null },
+    chainId: number,
+  ): Promise<string | null> {
+    // If escrow address already exists, return it
+    if (pool.escrowAddress) {
+      return pool.escrowAddress;
+    }
+
+    // Only Stable Yield pools have escrow
+    if (pool.poolType !== 'STABLE_YIELD') {
+      return null;
+    }
+
+    try {
+      const registry = this.blockchain.getPoolRegistry(chainId);
+      const poolData = await registry.getStableYieldPoolData(pool.poolAddress);
+
+      if (poolData.escrowAddress && poolData.escrowAddress !== ethers.ZeroAddress) {
+        // Update the database with the escrow address
+        await this.prisma.pool.update({
+          where: { id: pool.id },
+          data: { escrowAddress: poolData.escrowAddress.toLowerCase() },
+        });
+
+        this.logger.log(
+          `📝 Updated escrow address for pool ${pool.poolAddress}: ${poolData.escrowAddress}`,
+        );
+        return poolData.escrowAddress.toLowerCase();
+      }
+    } catch (error) {
+      this.logger.warn(`Could not fetch escrow address from registry: ${error.message}`);
+    }
+
+    return null;
+  }
+
+  /**
    * Get comprehensive pool detail for Admin
    * This is the main dashboard for admin to monitor and manage a pool
    */
   async getAdminPoolDetail(poolAddress: string, chainId = 84532) {
-    const pool = await this.prisma.pool.findFirst({
+    let pool = await this.prisma.pool.findFirst({
       where: {
         poolAddress: poolAddress.toLowerCase(),
         chainId,
@@ -1889,6 +2107,64 @@ export class AdminService {
 
     if (!pool) {
       throw new NotFoundException('Pool not found');
+    }
+
+    // Ensure escrow address is populated for Stable Yield pools
+    const escrowAddress = await this.ensureEscrowAddress(pool, chainId);
+    if (escrowAddress && !pool.escrowAddress) {
+      pool = { ...pool, escrowAddress };
+    }
+
+    // Get live TVL from on-chain based on pool type
+    let liveTVL = '0';
+    let tvlBreakdown: Record<string, string> = {};
+    let escrowData: {
+      poolReserves: string;
+      cashBuffer: string;
+      accruedFees: string; // Unclaimed fees
+      claimedFees: string; // Already collected
+      totalFees: string; // Total lifetime (claimed + unclaimed)
+      totalBalance: string;
+    } | null = null;
+
+    try {
+      const assetContract = this.blockchain.getERC20(chainId, pool.assetAddress);
+      const decimals = await assetContract.decimals();
+
+      const { tvl, breakdown } = await this.blockchain.getPoolTVL(
+        chainId,
+        pool.poolAddress,
+        pool.poolType as 'SINGLE_ASSET' | 'STABLE_YIELD' | 'LOCKED',
+      );
+      liveTVL = ethers.formatUnits(tvl, decimals);
+
+      if (breakdown) {
+        for (const [key, value] of Object.entries(breakdown)) {
+          tvlBreakdown[key] = ethers.formatUnits(value, decimals);
+        }
+      }
+
+      // For Stable Yield pools, also get escrow data
+      if (pool.poolType === 'STABLE_YIELD' && pool.escrowAddress) {
+        const escrow = await this.blockchain.getEscrowData(chainId, pool.escrowAddress);
+        const accruedFeesNum = ethers.formatUnits(escrow.accruedFees, decimals);
+        const totalFeesNum = ethers.formatUnits(escrow.totalFeesCollected, decimals); // Total = claimed + unclaimed
+        const claimedFeesNum = (parseFloat(totalFeesNum) - parseFloat(accruedFeesNum)).toFixed(
+          decimals > 6 ? 6 : decimals,
+        );
+
+        escrowData = {
+          poolReserves: ethers.formatUnits(escrow.poolReserves, decimals),
+          cashBuffer: ethers.formatUnits(escrow.cashBuffer, decimals),
+          accruedFees: accruedFeesNum, // Unclaimed fees
+          claimedFees: claimedFeesNum, // Claimed = total - unclaimed
+          totalFees: totalFeesNum, // Total lifetime fees
+          totalBalance: ethers.formatUnits(escrow.totalBalance, decimals),
+        };
+      }
+    } catch (error) {
+      this.logger.error(`Failed to fetch live TVL: ${error.message}`);
+      liveTVL = pool.analytics?.totalValueLocked?.toString() || '0';
     }
 
     // For Stable Yield pools, get reserve status
@@ -2227,7 +2503,8 @@ export class AdminService {
         type: pool.poolType,
         status: pool.status,
         assetSymbol: pool.assetSymbol,
-        totalValueLocked: pool.analytics?.totalValueLocked || '0',
+        totalValueLocked: liveTVL, // Live from chain
+        totalValueLockedCached: pool.analytics?.totalValueLocked || '0', // From DB
         totalShares: pool.analytics?.totalShares || '0',
         navPerShare: pool.analytics?.navPerShare || '1.0',
         projectedAPY: pool.projectedAPY?.toString() || '0',
@@ -2243,6 +2520,7 @@ export class AdminService {
         factors: healthFactors,
       },
       reserves: reserveInfo,
+      escrow: escrowData, // Escrow data for Stable Yield pools
       spvPerformance,
       withdrawalQueue: {
         pending: pool.withdrawalRequests.map((req: any) => ({
@@ -2285,7 +2563,8 @@ export class AdminService {
         },
       },
       financials: {
-        tvl: pool.analytics?.totalValueLocked || '0',
+        tvl: liveTVL, // Live TVL from chain
+        tvlBreakdown, // Breakdown per pool type
         invested: pool.instruments
           .reduce((sum: number, inst: any) => sum + Number(inst.purchasePrice), 0)
           .toFixed(2),
@@ -2297,6 +2576,19 @@ export class AdminService {
           )
           .toFixed(2),
       },
+      fees: escrowData
+        ? {
+            unclaimed: escrowData.accruedFees, // Pending collection
+            claimed: escrowData.claimedFees, // Already collected to treasury
+            total: escrowData.totalFees, // Lifetime total (claimed + unclaimed)
+            totalFromPool: pool.analytics?.totalPenaltiesCollected?.toString() || '0',
+          }
+        : {
+            unclaimed: '0',
+            claimed: '0',
+            total: '0',
+            totalFromPool: pool.analytics?.totalPenaltiesCollected?.toString() || '0',
+          },
       availableActions,
     };
   }
@@ -2698,5 +2990,446 @@ export class AdminService {
         penaltyPaid: pos.penaltyPaid?.toString() || null,
       })),
     };
+  }
+
+  // ============================================================================
+  // SYSTEM ALERTS
+  // ============================================================================
+
+  /**
+   * Get system alerts based on pool states and upcoming events
+   * GET /api/v1/admin/alerts
+   */
+  async getAlerts() {
+    const alerts: any[] = [];
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // 1. Single-Asset pools approaching epoch end (within 7 days)
+    const epochClosingPools = await this.prisma.pool.findMany({
+      where: {
+        poolType: 'SINGLE_ASSET',
+        status: 'FUNDING',
+        isActive: true,
+        epochEndTime: {
+          gte: now,
+          lte: sevenDaysFromNow,
+        },
+      },
+    });
+
+    for (const pool of epochClosingPools) {
+      const daysRemaining = Math.ceil(
+        (pool.epochEndTime!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      alerts.push({
+        id: `epoch-${pool.id}`,
+        type: 'epoch_closing',
+        severity: daysRemaining <= 2 ? 'critical' : 'warning',
+        message: `Pool "${pool.name}" epoch ends in ${daysRemaining} day(s)`,
+        timestamp: now.toISOString(),
+        poolId: pool.id,
+        poolName: pool.name,
+        poolAddress: pool.poolAddress,
+        actionLabel: 'Review & Close',
+        actionEndpoint: `/api/v1/admin/pools/${pool.poolAddress}/close-epoch`,
+        daysRemaining,
+      });
+    }
+
+    // 2. Single-Asset pools that are fully funded
+    const filledPools = await this.prisma.pool.findMany({
+      where: {
+        poolType: 'SINGLE_ASSET',
+        status: 'FUNDING',
+        isActive: true,
+      },
+      include: {
+        analytics: true,
+      },
+    });
+
+    for (const pool of filledPools) {
+      if (pool.targetRaise && pool.analytics) {
+        const tvl = Number(pool.analytics.totalValueLocked);
+        const target = Number(pool.targetRaise);
+        if (tvl >= target) {
+          alerts.push({
+            id: `filled-${pool.id}`,
+            type: 'pool_filled',
+            severity: 'info',
+            message: `Pool "${pool.name}" has reached target raise of ${target}`,
+            timestamp: now.toISOString(),
+            poolId: pool.id,
+            poolName: pool.name,
+            poolAddress: pool.poolAddress,
+            actionLabel: 'Close Early',
+            actionEndpoint: `/api/v1/admin/pools/${pool.poolAddress}/close-epoch`,
+          });
+        }
+      }
+    }
+
+    // 3. Stable Yield pools needing APY update (approaching end of month)
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (daysInMonth - dayOfMonth <= 3) {
+      const stableYieldPools = await this.prisma.pool.findMany({
+        where: {
+          poolType: 'STABLE_YIELD',
+          isActive: true,
+          status: { not: 'CANCELLED' },
+        },
+      });
+
+      for (const pool of stableYieldPools) {
+        alerts.push({
+          id: `apy-${pool.id}`,
+          type: 'apy_update',
+          severity: 'warning',
+          message: `Monthly APY review due for "${pool.name}"`,
+          timestamp: now.toISOString(),
+          poolId: pool.id,
+          poolName: pool.name,
+          poolAddress: pool.poolAddress,
+          actionLabel: 'Update APY',
+          daysRemaining: daysInMonth - dayOfMonth,
+        });
+      }
+    }
+
+    // 4. Locked positions maturing soon (within 7 days)
+    const maturingPositions = await this.prisma.lockedPosition.findMany({
+      where: {
+        status: 'ACTIVE',
+        lockEndTime: {
+          gte: now,
+          lte: sevenDaysFromNow,
+        },
+      },
+      include: {
+        pool: true,
+      },
+    });
+
+    // Group by pool
+    const maturingByPool = maturingPositions.reduce((acc, pos) => {
+      const key = pos.poolId;
+      if (!acc[key]) {
+        acc[key] = { pool: pos.pool, count: 0, totalPrincipal: 0 };
+      }
+      acc[key].count++;
+      acc[key].totalPrincipal += Number(pos.principal);
+      return acc;
+    }, {} as Record<string, any>);
+
+    for (const [, data] of Object.entries(maturingByPool)) {
+      alerts.push({
+        id: `maturity-${data.pool.id}`,
+        type: 'positions_maturing',
+        severity: 'info',
+        message: `${data.count} position(s) maturing in pool "${
+          data.pool.name
+        }" (${data.totalPrincipal.toFixed(2)} total)`,
+        timestamp: now.toISOString(),
+        poolId: data.pool.id,
+        poolName: data.pool.name,
+        poolAddress: data.pool.poolAddress,
+        metadata: {
+          positionCount: data.count,
+          totalPrincipal: data.totalPrincipal,
+        },
+      });
+    }
+
+    // 5. Paused pools
+    const pausedPools = await this.prisma.pool.findMany({
+      where: { isPaused: true },
+    });
+
+    for (const pool of pausedPools) {
+      alerts.push({
+        id: `paused-${pool.id}`,
+        type: 'pool_paused',
+        severity: 'critical',
+        message: `Pool "${pool.name}" is paused`,
+        timestamp: now.toISOString(),
+        poolId: pool.id,
+        poolName: pool.name,
+        poolAddress: pool.poolAddress,
+        actionLabel: 'Unpause',
+        actionEndpoint: `/api/v1/admin/pools/${pool.poolAddress}/unpause`,
+      });
+    }
+
+    // Sort by severity (critical first)
+    const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+    alerts.sort((a, b) => (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2));
+
+    return {
+      alerts,
+      summary: {
+        critical: alerts.filter((a) => a.severity === 'critical').length,
+        warning: alerts.filter((a) => a.severity === 'warning').length,
+        info: alerts.filter((a) => a.severity === 'info').length,
+        total: alerts.length,
+      },
+    };
+  }
+
+  /**
+   * Acknowledge/dismiss an alert
+   * POST /api/v1/admin/alerts/:alertId/acknowledge
+   */
+  async acknowledgeAlert(alertId: string, userId: string) {
+    // Store acknowledged alerts in a separate table or cache
+    // For now, we'll just log it
+    this.logger.log(`Alert ${alertId} acknowledged by user ${userId}`);
+    return { success: true, alertId };
+  }
+
+  // ============================================================================
+  // ROLE MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Get all role assignments
+   * GET /api/v1/admin/roles
+   */
+  async getRoles() {
+    const users = await this.prisma.user.findMany({
+      where: {
+        userType: { not: 'REGULAR_USER' },
+      },
+      select: {
+        id: true,
+        walletAddress: true,
+        email: true,
+        userType: true,
+        isActive: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Map user types to roles
+    const roles = users.map((user) => ({
+      id: user.id,
+      address: user.walletAddress,
+      role: user.userType,
+      grantedAt: user.createdAt.toISOString(),
+      isActive: user.isActive,
+    }));
+
+    return {
+      roles,
+      summary: {
+        totalAdmins: users.filter((u) => u.userType === 'ADMIN').length,
+        totalOperators: users.filter((u) => u.userType === 'OPERATOR').length,
+        totalSPVManagers: users.filter((u) => u.userType === 'SPV_MANAGER').length,
+        totalVerifiers: users.filter((u) => u.userType === 'VERIFIER').length,
+        total: users.length,
+      },
+    };
+  }
+
+  /**
+   * Build transaction to grant role on-chain via AccessManager
+   * POST /api/v1/admin/roles/grant
+   */
+  async grantRole(dto: { address: string; role: string }, chainId = 84532) {
+    const accessManager = this.blockchain.getAccessManager(chainId);
+    const addresses = CONTRACT_ADDRESSES[chainId];
+
+    // Map role name to on-chain role ID
+    // These should match AccessManager role definitions
+    const roleMap: Record<string, bigint> = {
+      ADMIN: 0n, // DEFAULT_ADMIN_ROLE
+      OPERATOR: 1n,
+      SPV_MANAGER: 2n,
+      VERIFIER: 3n,
+      SUPER_ADMIN: 0n, // Same as ADMIN
+    };
+
+    const roleId = roleMap[dto.role.toUpperCase()];
+    if (roleId === undefined) {
+      throw new BadRequestException(`Unknown role: ${dto.role}`);
+    }
+
+    const data = accessManager.interface.encodeFunctionData('grantRole', [
+      roleId,
+      dto.address,
+      0, // executionDelay
+    ]);
+
+    return {
+      transaction: {
+        to: addresses.accessManager,
+        data,
+        value: '0',
+        description: `Grant ${dto.role} role to ${dto.address}`,
+      },
+      role: {
+        address: dto.address,
+        role: dto.role,
+        status: 'pending',
+      },
+    };
+  }
+
+  /**
+   * Build transaction to revoke role on-chain via AccessManager
+   * POST /api/v1/admin/roles/revoke
+   */
+  async revokeRole(dto: { address: string; role: string }, chainId = 84532) {
+    const accessManager = this.blockchain.getAccessManager(chainId);
+    const addresses = CONTRACT_ADDRESSES[chainId];
+
+    const roleMap: Record<string, bigint> = {
+      ADMIN: 0n,
+      OPERATOR: 1n,
+      SPV_MANAGER: 2n,
+      VERIFIER: 3n,
+      SUPER_ADMIN: 0n,
+    };
+
+    const roleId = roleMap[dto.role.toUpperCase()];
+    if (roleId === undefined) {
+      throw new BadRequestException(`Unknown role: ${dto.role}`);
+    }
+
+    const data = accessManager.interface.encodeFunctionData('revokeRole', [roleId, dto.address]);
+
+    return {
+      transaction: {
+        to: addresses.accessManager,
+        data,
+        value: '0',
+        description: `Revoke ${dto.role} role from ${dto.address}`,
+      },
+    };
+  }
+
+  // ============================================================================
+  // PAUSED POOLS
+  // ============================================================================
+
+  /**
+   * Get all paused pools
+   * GET /api/v1/admin/pools/paused
+   */
+  async getPausedPools() {
+    const pools = await this.prisma.pool.findMany({
+      where: { isPaused: true },
+      select: {
+        id: true,
+        name: true,
+        poolAddress: true,
+        poolType: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      pools: pools.map((pool) => ({
+        poolId: pool.id,
+        poolName: pool.name,
+        poolAddress: pool.poolAddress,
+        poolType: pool.poolType,
+        pausedAt: pool.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  // ============================================================================
+  // KNOWN ADDRESSES
+  // ============================================================================
+
+  /**
+   * Get mapping of known addresses to friendly names
+   * GET /api/v1/admin/addresses/known
+   */
+  async getKnownAddresses(chainId = 84532) {
+    const addresses: Record<string, { name: string; type: string; description?: string }> = {};
+    const contractAddresses = CONTRACT_ADDRESSES[chainId];
+
+    // Add contract addresses
+    addresses[contractAddresses.accessManager.toLowerCase()] = {
+      name: 'Access Manager',
+      type: 'contract',
+      description: 'Role-based access control',
+    };
+    addresses[contractAddresses.poolRegistry.toLowerCase()] = {
+      name: 'Pool Registry',
+      type: 'contract',
+      description: 'Pool registration and tracking',
+    };
+    addresses[contractAddresses.poolFactory.toLowerCase()] = {
+      name: 'Pool Factory',
+      type: 'contract',
+      description: 'Single-Asset pool factory',
+    };
+    addresses[contractAddresses.manager.toLowerCase()] = {
+      name: 'Manager',
+      type: 'contract',
+      description: 'Single-Asset pool manager',
+    };
+    addresses[contractAddresses.stableYieldManager.toLowerCase()] = {
+      name: 'Stable Yield Manager',
+      type: 'contract',
+      description: 'Stable Yield pool manager',
+    };
+    addresses[contractAddresses.managedPoolFactory.toLowerCase()] = {
+      name: 'Managed Pool Factory',
+      type: 'contract',
+      description: 'Stable Yield & Locked pool factory',
+    };
+    addresses[contractAddresses.lockedPoolManager.toLowerCase()] = {
+      name: 'Locked Pool Manager',
+      type: 'contract',
+      description: 'Locked pool manager',
+    };
+
+    // Add known user addresses (admins, SPVs, etc.)
+    const knownUsers = await this.prisma.user.findMany({
+      where: {
+        userType: { not: 'REGULAR_USER' },
+      },
+      select: {
+        walletAddress: true,
+        email: true,
+        userType: true,
+      },
+    });
+
+    for (const user of knownUsers) {
+      addresses[user.walletAddress.toLowerCase()] = {
+        name: user.email || `${user.userType} User`,
+        type: user.userType.toLowerCase(),
+      };
+    }
+
+    // Add SPV addresses from pools
+    const spvPools = await this.prisma.pool.findMany({
+      where: {
+        spvAddress: { not: null },
+      },
+      select: {
+        name: true,
+        spvAddress: true,
+      },
+    });
+
+    for (const pool of spvPools) {
+      if (pool.spvAddress && !addresses[pool.spvAddress.toLowerCase()]) {
+        addresses[pool.spvAddress.toLowerCase()] = {
+          name: `SPV for ${pool.name}`,
+          type: 'spv',
+        };
+      }
+    }
+
+    return { addresses };
   }
 }
