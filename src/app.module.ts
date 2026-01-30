@@ -13,7 +13,6 @@ import { BlockchainModule } from './blockchain/blockchain.module';
 
 @Module({
   imports: [
-    // Bull queue configuration for event processing
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || 'localhost',

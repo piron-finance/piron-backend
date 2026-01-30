@@ -1098,9 +1098,10 @@ export class SpvService {
   /**
    * Get comprehensive SPV analytics (enhanced version)
    */
-  async getEnhancedAnalytics() {
+  async getEnhancedAnalytics(chainId = 84532) {
     const [
       stableYieldPools,
+      lockedPools,
       totalInstruments,
       activeInstruments,
       pendingInvestments,
@@ -1111,12 +1112,23 @@ export class SpvService {
         where: {
           poolType: 'STABLE_YIELD',
           isActive: true,
+          chainId,
         },
         include: {
           analytics: true,
           instruments: {
             where: { isActive: true },
           },
+        },
+      }),
+      this.prisma.pool.findMany({
+        where: {
+          poolType: 'LOCKED',
+          isActive: true,
+          chainId,
+        },
+        include: {
+          analytics: true,
         },
       }),
       this.prisma.instrument.count(),
@@ -1143,11 +1155,38 @@ export class SpvService {
       }),
     ]);
 
-    // Calculate total AUM
-    const totalAUM = stableYieldPools.reduce(
-      (sum, pool) => sum + Number(pool.analytics?.totalValueLocked || 0),
-      0,
-    );
+    // Calculate total AUM from on-chain data for each pool type
+    let totalAUMStableYield = BigInt(0);
+    let totalAUMLocked = BigInt(0);
+
+    // Fetch on-chain NAV for Stable Yield pools
+    for (const pool of stableYieldPools) {
+      if (pool.poolAddress && pool.poolAddress !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const nav = await this.blockchain.calculatePoolNAV(chainId, pool.poolAddress);
+          totalAUMStableYield += nav;
+        } catch (error) {
+          // Fall back to cached value
+          totalAUMStableYield += BigInt(Math.floor(Number(pool.analytics?.totalValueLocked || 0) * 10 ** pool.assetDecimals));
+        }
+      }
+    }
+
+    // Fetch on-chain metrics for Locked pools
+    for (const pool of lockedPools) {
+      if (pool.poolAddress && pool.poolAddress !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const metrics = await this.blockchain.getLockedPoolMetricsFromManager(chainId, pool.poolAddress);
+          totalAUMLocked += metrics.totalPrincipalLocked;
+        } catch (error) {
+          // Fall back to cached value
+          totalAUMLocked += BigInt(Math.floor(Number(pool.analytics?.totalValueLocked || 0) * 10 ** pool.assetDecimals));
+        }
+      }
+    }
+
+    // Combine and format AUM (using 6 decimals as common denominator)
+    const totalAUM = Number(ethers.formatUnits(totalAUMStableYield + totalAUMLocked, 6));
 
     // Calculate pending maturities value
     const pendingMaturitiesValue = upcomingMaturities.reduce(
@@ -1174,8 +1213,12 @@ export class SpvService {
 
     return {
       overview: {
-        assignedPools: stableYieldPools.length,
-        totalAUM: totalAUM.toString(),
+        assignedPools: stableYieldPools.length + lockedPools.length,
+        totalAUM: totalAUM.toFixed(2),
+        aumBreakdown: {
+          stableYield: ethers.formatUnits(totalAUMStableYield, 6),
+          locked: ethers.formatUnits(totalAUMLocked, 6),
+        },
         pendingInvestments: {
           count: pendingInvestments.summary.totalPools,
           totalAmount: pendingInvestments.summary.totalAmount,
@@ -1192,6 +1235,16 @@ export class SpvService {
         },
       },
       portfolioAllocation: {
+        byPoolType: {
+          STABLE_YIELD: {
+            count: stableYieldPools.length,
+            aum: ethers.formatUnits(totalAUMStableYield, 6),
+          },
+          LOCKED: {
+            count: lockedPools.length,
+            aum: ethers.formatUnits(totalAUMLocked, 6),
+          },
+        },
         byInstrumentType: {
           DISCOUNTED: {
             count: allInstruments.filter((i) => i.instrumentType === 'DISCOUNTED').length,
@@ -1206,6 +1259,7 @@ export class SpvService {
           .map((pool) => ({
             poolId: pool.id,
             poolName: pool.name,
+            poolType: 'STABLE_YIELD',
             instrumentCount: pool.instruments.length,
             totalValue: pool.instruments
               .reduce((sum, i) => sum + Number(i.faceValue), 0)
@@ -1527,15 +1581,38 @@ export class SpvService {
 
     for (const pool of pools) {
       try {
-        // Get reserve status from contract
-        const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
-        const reserveStatus = await stableYieldManager.getReserveStatus(pool.poolAddress);
+        // Get escrow address (fetch from registry if not in DB)
+        let escrowAddress = pool.escrowAddress;
+        if (!escrowAddress) {
+          const registry = this.blockchain.getPoolRegistry(chainId);
+          const poolInfo = await registry.getStableYieldPoolData(pool.poolAddress);
+          escrowAddress = poolInfo.escrowAddress;
+          // Update DB for future calls
+          await this.prisma.pool.update({
+            where: { id: pool.id },
+            data: { escrowAddress: escrowAddress.toLowerCase() },
+          });
+        }
 
         const assetContract = this.blockchain.getERC20(chainId, pool.assetAddress);
         const decimals = await assetContract.decimals();
 
-        const currentReserve = Number(ethers.formatUnits(reserveStatus.currentReserve, decimals));
-        const targetReserve = Number(ethers.formatUnits(reserveStatus.targetReserve, decimals));
+        // Fetch escrow data and pool NAV to calculate reserve status
+        const [escrowData, totalNAVRaw] = await Promise.all([
+          this.blockchain.getEscrowData(chainId, escrowAddress),
+          this.blockchain.calculatePoolNAV(chainId, pool.poolAddress),
+        ]);
+
+        const totalNAV = Number(ethers.formatUnits(totalNAVRaw, decimals));
+        const currentReserve = Number(ethers.formatUnits(escrowData.cashBuffer, decimals));
+        
+        // Target reserve is 10% of total NAV
+        const targetReserveRatioBps = 1000; // 10%
+        const targetReserve = totalNAV * (targetReserveRatioBps / 10000);
+        
+        // Calculate actual reserve ratio as percentage
+        const reserveRatio = totalNAV > 0 ? (currentReserve / totalNAV) * 100 : 0;
+        
         const availableToInvest = Math.max(0, currentReserve - targetReserve);
 
         // Check if above threshold
@@ -1561,7 +1638,7 @@ export class SpvService {
             exceedsBy: exceedsBy.toFixed(2),
             currentReserve: currentReserve.toFixed(2),
             targetReserve: targetReserve.toFixed(2),
-            reserveRatio: `${(Number(reserveStatus.reserveRatio) / 100).toFixed(2)}%`,
+            reserveRatio: `${reserveRatio.toFixed(2)}%`,
             recommendation:
               'Request operator to allocate funds via POST /admin/pools/:address/allocate-to-spv',
           });
@@ -1585,6 +1662,194 @@ export class SpvService {
         totalAlerts: alerts.length,
         totalAvailableToInvest: totalAvailableToInvest.toFixed(2),
         poolsMonitored: pools.length,
+      },
+    };
+  }
+
+  /**
+   * Get allocations for the connected SPV
+   * Searches ALL active pools (not just ones assigned to this SPV) to find allocations
+   */
+  async getSPVAllocations(spvAddress: string, chainId = 84532) {
+    if (!spvAddress) {
+      throw new BadRequestException('SPV address is required');
+    }
+
+    const normalizedSpvAddress = spvAddress.toLowerCase();
+
+    // Get ALL active Stable Yield and Locked pools (not just ones assigned to this SPV)
+    // because allocations can exist on any pool
+    const pools = await this.prisma.pool.findMany({
+      where: {
+        chainId,
+        isActive: true,
+        poolType: { in: ['STABLE_YIELD', 'LOCKED'] },
+        NOT: { poolAddress: '' },
+      },
+      select: {
+        id: true,
+        name: true,
+        poolAddress: true,
+        poolType: true,
+        assetAddress: true,
+        assetSymbol: true,
+        assetDecimals: true,
+        escrowAddress: true,
+        spvAddress: true,
+      },
+    });
+
+    const allocations: any[] = [];
+
+    for (const pool of pools) {
+      if (!pool.poolAddress || pool.poolAddress === '0x0000000000000000000000000000000000000000') {
+        continue;
+      }
+
+      try {
+        if (pool.poolType === 'STABLE_YIELD') {
+          // First check if this SPV has any allocation on this pool (quick check)
+          const poolToSpvAlloc = await this.blockchain.getStableYieldPoolToSPVAllocation(
+            chainId,
+            pool.poolAddress,
+            normalizedSpvAddress,
+          );
+
+          // Only fetch pending allocations if there's some allocation
+          if (poolToSpvAlloc > BigInt(0)) {
+            // Get pending allocation IDs for this pool
+            const allocIds = await this.blockchain.getStableYieldPendingAllocations(
+              chainId,
+              pool.poolAddress,
+            );
+
+            for (const allocId of allocIds) {
+              try {
+                const alloc = await this.blockchain.getStableYieldAllocation(chainId, allocId);
+                // Only include allocations for this SPV
+                if (alloc.spv.toLowerCase() === normalizedSpvAddress) {
+                  const status = ['PENDING', 'ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED'][alloc.status] || 'UNKNOWN';
+                  allocations.push({
+                    allocationId: allocId,
+                    poolAddress: pool.poolAddress,
+                    poolName: pool.name,
+                    poolType: pool.poolType,
+                    amount: ethers.formatUnits(alloc.amount, pool.assetDecimals),
+                    amountRaw: alloc.amount.toString(),
+                    usedAmount: ethers.formatUnits(alloc.usedAmount, pool.assetDecimals),
+                    returnedAmount: ethers.formatUnits(alloc.returnedAmount, pool.assetDecimals),
+                    remainingAmount: ethers.formatUnits(
+                      alloc.amount - alloc.usedAmount - alloc.returnedAmount,
+                      pool.assetDecimals,
+                    ),
+                    createdAt: new Date(Number(alloc.createdAt) * 1000),
+                    expiresAt: new Date(Number(alloc.expiresAt) * 1000),
+                    daysUntilExpiry: Math.ceil(
+                      (Number(alloc.expiresAt) * 1000 - Date.now()) / (1000 * 60 * 60 * 24),
+                    ),
+                    status,
+                    assetSymbol: pool.assetSymbol,
+                    assetDecimals: pool.assetDecimals,
+                    isAssignedPool: pool.spvAddress === normalizedSpvAddress,
+                  });
+                }
+              } catch (allocError) {
+                this.logger.warn(`Could not fetch allocation ${allocId}: ${allocError.message}`);
+              }
+            }
+          }
+        } else if (pool.poolType === 'LOCKED') {
+          // First check if this SPV has any allocation on this pool
+          const poolToSpvAlloc = await this.blockchain.getLockedPoolToSPVAllocation(
+            chainId,
+            pool.poolAddress,
+            normalizedSpvAddress,
+          );
+
+          if (poolToSpvAlloc > BigInt(0)) {
+            // Get locked pool allocations
+            const allocIds = await this.blockchain.getLockedPoolAllocationIds(chainId, pool.poolAddress);
+
+            for (const allocId of allocIds) {
+              try {
+                const alloc = await this.blockchain.getLockedSPVAllocation(chainId, allocId);
+                if (alloc.spvAddress?.toLowerCase() === normalizedSpvAddress) {
+                  const status = ['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'][alloc.status] || 'UNKNOWN';
+                  allocations.push({
+                    allocationId: allocId,
+                    poolAddress: pool.poolAddress,
+                    poolName: pool.name,
+                    poolType: pool.poolType,
+                    amount: ethers.formatUnits(alloc.amount, pool.assetDecimals),
+                    amountRaw: alloc.amount.toString(),
+                    usedAmount: '0', // Locked allocations don't track usedAmount
+                    returnedAmount: ethers.formatUnits(alloc.returnedAmount, pool.assetDecimals),
+                    remainingAmount: ethers.formatUnits(
+                      alloc.amount - alloc.returnedAmount,
+                      pool.assetDecimals,
+                    ),
+                    createdAt: new Date(Number(alloc.createdAt) * 1000),
+                    status,
+                    assetSymbol: pool.assetSymbol,
+                    assetDecimals: pool.assetDecimals,
+                    isAssignedPool: pool.spvAddress === normalizedSpvAddress,
+                  });
+                }
+              } catch (allocError) {
+                this.logger.warn(`Could not fetch locked allocation ${allocId}: ${allocError.message}`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Could not fetch allocations for pool ${pool.name}: ${error.message}`);
+      }
+    }
+
+    // Sort allocations by created date (most recent first)
+    allocations.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Calculate totals from allocations array (already formatted, so we sum as numbers)
+    const stableYieldAllocations = allocations.filter((a) => a.poolType === 'STABLE_YIELD');
+    const lockedAllocations = allocations.filter((a) => a.poolType === 'LOCKED');
+
+    const totalStableYieldAmount = stableYieldAllocations.reduce(
+      (sum, a) => sum + parseFloat(a.amount),
+      0,
+    );
+    const totalLockedAmount = lockedAllocations.reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+    const totalStableYieldRemaining = stableYieldAllocations.reduce(
+      (sum, a) => sum + parseFloat(a.remainingAmount),
+      0,
+    );
+    const totalLockedRemaining = lockedAllocations.reduce(
+      (sum, a) => sum + parseFloat(a.remainingAmount),
+      0,
+    );
+
+    return {
+      spvAddress: normalizedSpvAddress,
+      allocations,
+      summary: {
+        totalAllocations: allocations.length,
+        activeAllocations: allocations.filter((a) => a.status === 'ACTIVE' || a.status === 'PENDING').length,
+        // Totals calculated from allocations (properly handles mixed decimals)
+        totalAllocatedStableYield: totalStableYieldAmount.toFixed(2),
+        totalAllocatedLocked: totalLockedAmount.toFixed(2),
+        totalRemainingStableYield: totalStableYieldRemaining.toFixed(2),
+        totalRemainingLocked: totalLockedRemaining.toFixed(2),
+        byStatus: {
+          pending: allocations.filter((a) => a.status === 'PENDING').length,
+          active: allocations.filter((a) => a.status === 'ACTIVE').length,
+          completed: allocations.filter((a) => a.status === 'COMPLETED').length,
+          expired: allocations.filter((a) => a.status === 'EXPIRED').length,
+          cancelled: allocations.filter((a) => a.status === 'CANCELLED').length,
+        },
+        byPoolType: {
+          stableYield: stableYieldAllocations.length,
+          locked: lockedAllocations.length,
+        },
       },
     };
   }
@@ -1683,39 +1948,50 @@ export class SpvService {
       );
     }
 
-    // Get reserve status from contract
-    const stableYieldManager = this.blockchain.getStableYieldManager(chainId);
-    let reserveStatus: any;
+    // Get escrow address (fetch from registry if not in DB)
+    let escrowAddress = pool.escrowAddress;
+    if (!escrowAddress) {
+      const registry = this.blockchain.getPoolRegistry(chainId);
+      const poolInfo = await registry.getStableYieldPoolData(pool.poolAddress);
+      escrowAddress = poolInfo.escrowAddress;
+      // Update DB for future calls
+      await this.prisma.pool.update({
+        where: { id: pool.id },
+        data: { escrowAddress: escrowAddress.toLowerCase() },
+      });
+    }
+
+    const assetContract = this.blockchain.getERC20(chainId, pool.assetAddress);
+    const decimals = await assetContract.decimals();
+
     let currentReserve: number;
     let targetReserve: number;
     let reserveRatio: number;
     let minRequired: number;
     let maxAllowed: number;
+    let needsRebalance: boolean;
 
     try {
-      // This will revert if pool is not registered in contract (poolExists modifier)
-      reserveStatus = await stableYieldManager.getReserveStatus(pool.poolAddress);
+      // Fetch escrow data and pool NAV to calculate reserve status
+      const [escrowData, totalNAVRaw] = await Promise.all([
+        this.blockchain.getEscrowData(chainId, escrowAddress),
+        this.blockchain.calculatePoolNAV(chainId, pool.poolAddress),
+      ]);
 
-      if (!reserveStatus) {
-        throw new Error('No reserve status returned from contract');
-      }
+      const totalNAV = Number(ethers.formatUnits(totalNAVRaw, decimals));
+      currentReserve = Number(ethers.formatUnits(escrowData.cashBuffer, decimals));
+      
+      // Target reserve is 10% of total NAV
+      const targetReserveRatioBps = 1000; // 10%
+      targetReserve = totalNAV * (targetReserveRatioBps / 10000);
+      
+      // Calculate actual reserve ratio as percentage
+      reserveRatio = totalNAV > 0 ? (currentReserve / totalNAV) * 100 : 0;
+      
+      // Rebalance needed if outside 8-12% range
+      needsRebalance = reserveRatio < 8 || reserveRatio > 12;
 
-      const assetContract = this.blockchain.getERC20(chainId, pool.assetAddress);
-      const decimals = await assetContract.decimals();
-
-      // Contract returns: [currentReserve, targetReserve, reserveRatio, rebalanceNeeded]
-      // Format the values that exist
-      currentReserve = Number(
-        ethers.formatUnits(reserveStatus.currentReserve || reserveStatus[0], decimals),
-      );
-      targetReserve = Number(
-        ethers.formatUnits(reserveStatus.targetReserve || reserveStatus[1], decimals),
-      );
-      reserveRatio = Number(reserveStatus.reserveRatio || reserveStatus[2]) / 100;
-
-      // Calculate min/max reserves based on the 8-12% range (contract uses 10% target with 2% tolerance)
-      const totalNAV =
-        currentReserve + targetReserve > 0 ? currentReserve / (reserveRatio / 100) : 0;
+      // Calculate min/max reserves based on the 8-12% range
       minRequired = totalNAV * 0.08; // 8% minimum
       maxAllowed = totalNAV * 0.12; // 12% maximum
     } catch (error) {
@@ -1723,16 +1999,15 @@ export class SpvService {
         `Failed to get reserve status for pool ${pool.poolAddress}: ${error.message}`,
       );
       throw new BadRequestException(
-        `Unable to fetch reserve data from StableYieldManager contract for pool "${pool.name}". ` +
+        `Unable to fetch reserve data for pool "${pool.name}". ` +
           `Contract error: ${error.message}`,
       );
     }
 
     const availableToInvest = Math.max(0, currentReserve - targetReserve);
 
-    // Determine reserve status
+    // Determine reserve status label
     let reserveStatusLabel: string;
-    let needsRebalance = reserveStatus.rebalanceNeeded;
     let rebalanceAction: 'invest' | 'liquidate' | null = null;
 
     if (currentReserve < minRequired) {
@@ -1870,6 +2145,141 @@ export class SpvService {
       take: 10,
     });
 
+    // ==========================================
+    // ON-CHAIN DATA FOR SPV
+    // ==========================================
+    let onChainInstruments: any[] = [];
+    let pendingAllocations: any[] = [];
+    let withdrawalQueueStatus: any = null;
+    let allocationReadiness: any = null;
+    let escrowData: any = null;
+
+    try {
+      // Get on-chain instruments
+      const instrumentData = await this.blockchain.getStableYieldInstruments(
+        chainId,
+        pool.poolAddress,
+      );
+      onChainInstruments = instrumentData.map((inst: any) => ({
+        instrumentType: inst.instrumentType === 0 ? 'DISCOUNTED' : 'COUPON_BEARING',
+        purchasePrice: ethers.formatUnits(inst.purchasePrice, decimals),
+        faceValue: ethers.formatUnits(inst.faceValue, decimals),
+        purchaseDate: new Date(Number(inst.purchaseDate) * 1000),
+        maturityDate: new Date(Number(inst.maturityDate) * 1000),
+        daysToMaturity: Math.floor(
+          (Number(inst.maturityDate) * 1000 - Date.now()) / (1000 * 60 * 60 * 24),
+        ),
+        annualCouponRateBps: Number(inst.annualCouponRate),
+        annualCouponRatePercent: (Number(inst.annualCouponRate) / 100).toFixed(2),
+        couponFrequency: Number(inst.couponFrequency),
+        nextCouponDueDate:
+          inst.nextCouponDueDate > 0n ? new Date(Number(inst.nextCouponDueDate) * 1000) : null,
+        couponsPaid: Number(inst.couponsPaid),
+        isActive: inst.isActive,
+        allocationId: inst.allocationId,
+        unrealizedGain: ethers.formatUnits(inst.faceValue - inst.purchasePrice, decimals),
+      }));
+    } catch (e) {
+      this.logger.warn(`Could not fetch on-chain instruments: ${e.message}`);
+    }
+
+    try {
+      // Get pending allocations
+      const allocIds = await this.blockchain.getStableYieldPendingAllocations(
+        chainId,
+        pool.poolAddress,
+      );
+      for (const allocId of allocIds) {
+        const alloc = await this.blockchain.getStableYieldAllocation(chainId, allocId);
+        pendingAllocations.push({
+          allocationId: alloc.allocationId,
+          spv: alloc.spv,
+          isMyAllocation: alloc.spv.toLowerCase() === spvAddress.toLowerCase(),
+          amount: ethers.formatUnits(alloc.amount, decimals),
+          usedAmount: ethers.formatUnits(alloc.usedAmount, decimals),
+          returnedAmount: ethers.formatUnits(alloc.returnedAmount, decimals),
+          remainingAmount: ethers.formatUnits(
+            alloc.amount - alloc.usedAmount - alloc.returnedAmount,
+            decimals,
+          ),
+          createdAt: new Date(Number(alloc.createdAt) * 1000),
+          expiresAt: new Date(Number(alloc.expiresAt) * 1000),
+          daysUntilExpiry: Math.floor(
+            (Number(alloc.expiresAt) * 1000 - Date.now()) / (1000 * 60 * 60 * 24),
+          ),
+          status: ['PENDING', 'ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED'][alloc.status] || 'UNKNOWN',
+        });
+      }
+    } catch (e) {
+      this.logger.warn(`Could not fetch pending allocations: ${e.message}`);
+    }
+
+    try {
+      // Get withdrawal queue status from chain
+      const queueStatus = await this.blockchain.getStableYieldWithdrawalQueue(
+        chainId,
+        pool.poolAddress,
+      );
+      withdrawalQueueStatus = {
+        queueHead: Number(queueStatus.head),
+        queueTail: Number(queueStatus.tail),
+        pendingRequests: Number(queueStatus.pending),
+        totalPendingValue: ethers.formatUnits(queueStatus.totalPendingValue, decimals),
+      };
+    } catch (e) {
+      this.logger.warn(`Could not fetch withdrawal queue status: ${e.message}`);
+    }
+
+    try {
+      // Check allocation readiness
+      const readiness = await this.blockchain.isReadyForAllocation(chainId, pool.poolAddress);
+      allocationReadiness = {
+        ready: readiness.ready,
+        availableAmount: ethers.formatUnits(readiness.availableAmount, decimals),
+      };
+    } catch (e) {
+      this.logger.warn(`Could not check allocation readiness: ${e.message}`);
+    }
+
+    try {
+      // Get escrow data
+      const escrow = await this.blockchain.getEscrowData(chainId, escrowAddress);
+      escrowData = {
+        poolReserves: ethers.formatUnits(escrow.poolReserves, decimals),
+        cashBuffer: ethers.formatUnits(escrow.cashBuffer, decimals),
+        accruedFees: ethers.formatUnits(escrow.accruedFees, decimals),
+        totalFeesCollected: ethers.formatUnits(escrow.totalFeesCollected, decimals),
+        totalBalance: ethers.formatUnits(escrow.totalBalance, decimals),
+      };
+    } catch (e) {
+      this.logger.warn(`Could not fetch escrow data: ${e.message}`);
+    }
+
+    // Get SPV-specific allocation data for this pool
+    let myTotalAllocation = '0';
+    let myTotalSPVAllocationAcrossPools = '0';
+
+    try {
+      const poolAllocation = await this.blockchain.getStableYieldPoolToSPVAllocation(
+        chainId,
+        pool.poolAddress,
+        spvAddress,
+      );
+      myTotalAllocation = ethers.formatUnits(poolAllocation, decimals);
+    } catch (e) {
+      this.logger.warn(`Could not fetch pool-SPV allocation: ${e.message}`);
+    }
+
+    try {
+      const totalAllocation = await this.blockchain.getStableYieldTotalSPVAllocation(
+        chainId,
+        spvAddress,
+      );
+      myTotalSPVAllocationAcrossPools = ethers.formatUnits(totalAllocation, decimals);
+    } catch (e) {
+      this.logger.warn(`Could not fetch total SPV allocation: ${e.message}`);
+    }
+
     return {
       pool: {
         address: pool.poolAddress,
@@ -1943,6 +2353,360 @@ export class SpvService {
         amount: op.amount?.toString() || '0',
         status: op.status,
       })),
+      // On-chain data
+      onChain: {
+        instruments: {
+          active: onChainInstruments.filter((i) => i.isActive),
+          matured: onChainInstruments.filter((i) => !i.isActive),
+          count: onChainInstruments.length,
+          activeCount: onChainInstruments.filter((i) => i.isActive).length,
+          totalValue: onChainInstruments
+            .filter((i) => i.isActive)
+            .reduce((sum, i) => sum + parseFloat(i.purchasePrice), 0)
+            .toFixed(2),
+          totalUnrealizedGain: onChainInstruments
+            .filter((i) => i.isActive)
+            .reduce((sum, i) => sum + parseFloat(i.unrealizedGain), 0)
+            .toFixed(2),
+          upcomingMaturities: onChainInstruments
+            .filter((i) => i.isActive && i.daysToMaturity <= 7 && i.daysToMaturity >= 0)
+            .map((i) => ({
+              purchasePrice: i.purchasePrice,
+              faceValue: i.faceValue,
+              maturityDate: i.maturityDate,
+              daysToMaturity: i.daysToMaturity,
+            })),
+        },
+        pendingAllocations: {
+          list: pendingAllocations,
+          count: pendingAllocations.length,
+          myAllocations: pendingAllocations.filter((a) => a.isMyAllocation),
+          totalPendingAmount: pendingAllocations
+            .reduce((sum, a) => sum + parseFloat(a.remainingAmount), 0)
+            .toFixed(2),
+        },
+        withdrawalQueue: withdrawalQueueStatus,
+        allocationReadiness,
+        escrow: escrowData,
+        // SPV-specific allocation summary
+        myAllocationSummary: {
+          thisPoolAllocation: myTotalAllocation,
+          totalAcrossAllPools: myTotalSPVAllocationAcrossPools,
+          myActiveAllocationsCount: pendingAllocations.filter(
+            (a) => a.isMyAllocation && (a.status === 'PENDING' || a.status === 'ACTIVE'),
+          ).length,
+          myTotalPendingAmount: pendingAllocations
+            .filter((a) => a.isMyAllocation)
+            .reduce((sum, a) => sum + parseFloat(a.remainingAmount), 0)
+            .toFixed(2),
+        },
+      },
+    };
+  }
+
+  // ============================================================================
+  // SPV ALLOCATION MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Return unused funds from allocation
+   */
+  async returnUnusedFunds(dto: { allocationId: string; returnAmount: string }, chainId = 84532) {
+    const allocation = await this.blockchain.getStableYieldAllocation(chainId, dto.allocationId);
+
+    if (allocation.status !== 1) {
+      // 1 = ACTIVE
+      throw new BadRequestException('Can only return funds from active allocations');
+    }
+
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: allocation.pool.toLowerCase(), chainId },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    const returnAmountWei = ethers.parseUnits(dto.returnAmount, pool.assetDecimals);
+    const remainingAmount = allocation.amount - allocation.usedAmount - allocation.returnedAmount;
+
+    if (returnAmountWei > remainingAmount) {
+      throw new BadRequestException(
+        `Return amount exceeds remaining allocation (${ethers.formatUnits(remainingAmount, pool.assetDecimals)})`,
+      );
+    }
+
+    const txPayload = this.blockchain.buildReturnUnusedFundsTx(chainId, dto.allocationId, returnAmountWei);
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'RETURN_UNUSED_FUNDS',
+        amount: parseFloat(dto.returnAmount),
+        status: 'PENDING',
+        initiatedBy: allocation.spv,
+        notes: `Return ${dto.returnAmount} ${pool.assetSymbol} from allocation ${dto.allocationId}`,
+      },
+    });
+
+    return {
+      message: `Transaction to return ${dto.returnAmount} ${pool.assetSymbol} from allocation`,
+      allocation: {
+        id: dto.allocationId,
+        poolName: pool.name,
+        originalAmount: ethers.formatUnits(allocation.amount, pool.assetDecimals),
+        usedAmount: ethers.formatUnits(allocation.usedAmount, pool.assetDecimals),
+        remainingAfterReturn: ethers.formatUnits(remainingAmount - returnAmountWei, pool.assetDecimals),
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  /**
+   * Process investment for Single Asset pool
+   */
+  async processInvestment(
+    dto: { poolAddress: string; actualAmount: string; proofHash: string },
+    chainId = 84532,
+  ) {
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: dto.poolAddress.toLowerCase(), chainId, poolType: 'SINGLE_ASSET' },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Single Asset pool not found');
+    }
+
+    const actualAmountWei = ethers.parseUnits(dto.actualAmount, pool.assetDecimals);
+    const txPayload = this.blockchain.buildProcessInvestmentTx(
+      chainId,
+      pool.poolAddress,
+      actualAmountWei,
+      dto.proofHash,
+    );
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'PROCESS_INVESTMENT',
+        amount: parseFloat(dto.actualAmount),
+        status: 'PENDING',
+        initiatedBy: 'spv', // TODO: Get from auth context
+        notes: `Investment confirmed: ${dto.actualAmount} ${pool.assetSymbol}, proof: ${dto.proofHash}`,
+      },
+    });
+
+    return {
+      message: `Transaction to confirm investment of ${dto.actualAmount} ${pool.assetSymbol}`,
+      pool: { name: pool.name, address: pool.poolAddress },
+      investment: {
+        amount: dto.actualAmount,
+        proofHash: dto.proofHash,
+        assetSymbol: pool.assetSymbol,
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  /**
+   * Process maturity return for Single Asset pool
+   */
+  async processMaturity(dto: { poolAddress: string; finalAmount: string }, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: dto.poolAddress.toLowerCase(), chainId, poolType: 'SINGLE_ASSET' },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Single Asset pool not found');
+    }
+
+    const finalAmountWei = ethers.parseUnits(dto.finalAmount, pool.assetDecimals);
+    const txPayload = this.blockchain.buildProcessMaturityTx(chainId, pool.poolAddress, finalAmountWei);
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'PROCESS_MATURITY',
+        amount: parseFloat(dto.finalAmount),
+        status: 'PENDING',
+        initiatedBy: 'spv', // TODO: Get from auth context
+        notes: `Maturity return: ${dto.finalAmount} ${pool.assetSymbol}`,
+      },
+    });
+
+    return {
+      message: `Transaction to process maturity return of ${dto.finalAmount} ${pool.assetSymbol}`,
+      pool: { name: pool.name, address: pool.poolAddress },
+      maturity: {
+        amount: dto.finalAmount,
+        assetSymbol: pool.assetSymbol,
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  /**
+   * Process coupon payment for Single Asset pool
+   */
+  async processCouponPayment(dto: { poolAddress: string; amount: string }, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: dto.poolAddress.toLowerCase(), chainId, poolType: 'SINGLE_ASSET' },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Single Asset pool not found');
+    }
+
+    const amountWei = ethers.parseUnits(dto.amount, pool.assetDecimals);
+    const txPayload = this.blockchain.buildProcessCouponPaymentTx(chainId, pool.poolAddress, amountWei);
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'COUPON_PAYMENT',
+        amount: parseFloat(dto.amount),
+        status: 'PENDING',
+        initiatedBy: 'spv', // TODO: Get from auth context
+        notes: `Coupon payment: ${dto.amount} ${pool.assetSymbol}`,
+      },
+    });
+
+    return {
+      message: `Transaction to process coupon payment of ${dto.amount} ${pool.assetSymbol}`,
+      pool: { name: pool.name, address: pool.poolAddress },
+      coupon: {
+        amount: dto.amount,
+        assetSymbol: pool.assetSymbol,
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  // ============================================================================
+  // LOCKED POOL SPV ACTIONS
+  // ============================================================================
+
+  /**
+   * Mature allocation for Locked Pool (return SPV funds)
+   */
+  async matureLockedAllocation(dto: { allocationId: string; returnedAmount: string }, chainId = 84532) {
+    const allocation = await this.blockchain.getLockedSPVAllocation(chainId, dto.allocationId);
+
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: allocation.poolAddress.toLowerCase(), chainId },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    const returnedAmountWei = ethers.parseUnits(dto.returnedAmount, pool.assetDecimals);
+    const txPayload = this.blockchain.buildMatureLockedAllocationTx(chainId, dto.allocationId, returnedAmountWei);
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'MATURE_ALLOCATION',
+        amount: parseFloat(dto.returnedAmount),
+        status: 'PENDING',
+        initiatedBy: 'spv', // TODO: Get from auth context
+        notes: `Mature allocation ${dto.allocationId}: ${dto.returnedAmount} ${pool.assetSymbol}`,
+      },
+    });
+
+    return {
+      message: `Transaction to mature allocation with ${dto.returnedAmount} ${pool.assetSymbol}`,
+      allocation: {
+        id: dto.allocationId,
+        poolName: pool.name,
+        originalAmount: ethers.formatUnits(allocation.amount, pool.assetDecimals),
+        returnedAmount: dto.returnedAmount,
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  /**
+   * Settle SPV return for a specific position
+   */
+  async settleSPVReturn(dto: { positionId: number; returnedAmount: string }, chainId = 84532) {
+    const position = await this.blockchain.getPosition(chainId, dto.positionId);
+
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: position.poolAddress.toLowerCase(), chainId },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Pool not found');
+    }
+
+    const returnedAmountWei = ethers.parseUnits(dto.returnedAmount, pool.assetDecimals);
+    const txPayload = this.blockchain.buildSettleSPVReturnTx(chainId, dto.positionId, returnedAmountWei);
+
+    await this.prisma.sPVOperation.create({
+      data: {
+        poolId: pool.id,
+        operationType: 'SETTLE_SPV_RETURN',
+        amount: parseFloat(dto.returnedAmount),
+        status: 'PENDING',
+        initiatedBy: 'spv', // TODO: Get from auth context
+        notes: `Settle position ${dto.positionId}: ${dto.returnedAmount} ${pool.assetSymbol}`,
+      },
+    });
+
+    return {
+      message: `Transaction to settle SPV return for position ${dto.positionId}`,
+      position: {
+        id: dto.positionId,
+        user: position.user,
+        poolName: pool.name,
+        returnedAmount: dto.returnedAmount,
+      },
+      transaction: { to: txPayload.to, data: txPayload.data, chainId },
+    };
+  }
+
+  /**
+   * Get user's withdrawal requests
+   */
+  async getUserWithdrawalRequests(poolAddress: string, userAddress: string, chainId = 84532) {
+    const pool = await this.prisma.pool.findFirst({
+      where: { poolAddress: poolAddress.toLowerCase(), chainId, poolType: 'STABLE_YIELD' },
+    });
+
+    if (!pool) {
+      throw new NotFoundException('Stable Yield pool not found');
+    }
+
+    const requestIds = await this.blockchain.getUserWithdrawalRequests(chainId, pool.poolAddress, userAddress);
+    const requests: any[] = [];
+
+    for (const requestId of requestIds) {
+      try {
+        const request = await this.blockchain.getWithdrawalRequest(chainId, pool.poolAddress, Number(requestId));
+        requests.push({
+          requestId: Number(requestId),
+          user: request.user,
+          shares: ethers.formatUnits(request.shares, pool.assetDecimals),
+          requestTime: new Date(Number(request.requestTime) * 1000),
+          estimatedValue: ethers.formatUnits(request.estimatedValue, pool.assetDecimals),
+          processed: request.processed,
+          processedTime: request.processed ? new Date(Number(request.processedTime) * 1000) : null,
+        });
+      } catch {
+        // Skip invalid requests
+      }
+    }
+
+    return {
+      pool: { name: pool.name, address: pool.poolAddress },
+      user: userAddress,
+      requests,
+      summary: {
+        total: requests.length,
+        pending: requests.filter((r) => !r.processed).length,
+        processed: requests.filter((r) => r.processed).length,
+      },
     };
   }
 }

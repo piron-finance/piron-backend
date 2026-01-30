@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, Query, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Patch, Put } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
   CreatePoolDto,
@@ -443,6 +443,52 @@ export class AdminController {
   }
 
   // ========== LOCKED POOL MANAGEMENT ==========
+  // NOTE: Static routes MUST come before parameterized routes in NestJS
+
+  /**
+   * Get positions ready for maturity
+   * GET /api/v1/admin/locked-pools/positions/maturity-ready
+   */
+  @Get('locked-pools/positions/maturity-ready')
+  async getMaturityReadyPositions(@Query('poolAddress') poolAddress?: string) {
+    return this.adminService.getMaturityReadyPositions(poolAddress);
+  }
+
+  /**
+   * Get positions with auto-rollover enabled
+   * GET /api/v1/admin/locked-pools/positions/rollover-ready
+   */
+  @Get('locked-pools/positions/rollover-ready')
+  async getRolloverReadyPositions(@Query('poolAddress') poolAddress?: string) {
+    return this.adminService.getRolloverReadyPositions(poolAddress);
+  }
+
+  /**
+   * Batch mature positions
+   * POST /api/v1/admin/locked-pools/positions/batch-mature
+   */
+  @Post('locked-pools/positions/batch-mature')
+  async batchMaturePositions(@Body() body: { positionIds: number[] }) {
+    return this.adminService.batchMaturePositions(body);
+  }
+
+  /**
+   * Batch execute rollovers
+   * POST /api/v1/admin/locked-pools/positions/batch-rollover
+   */
+  @Post('locked-pools/positions/batch-rollover')
+  async batchExecuteRollovers(@Body() body: { positionIds: number[] }) {
+    return this.adminService.batchExecuteRollovers(body);
+  }
+
+  /**
+   * Check if a position can be matured
+   * GET /api/v1/admin/locked-pools/positions/:positionId/can-mature
+   */
+  @Get('locked-pools/positions/:positionId/can-mature')
+  async canMaturePosition(@Param('positionId') positionId: string) {
+    return this.adminService.canMaturePosition(parseInt(positionId));
+  }
 
   /**
    * Get locked pool detail with tier statistics
@@ -482,5 +528,158 @@ export class AdminController {
   @Get('locked-pools/:poolAddress/positions')
   async getLockedPoolPositions(@Param('poolAddress') poolAddress: string) {
     return this.adminService.getLockedPoolPositions(poolAddress);
+  }
+
+  /**
+   * Set tier active status
+   * PUT /api/v1/admin/locked-pools/:poolAddress/tiers/:tierIndex/active
+   */
+  @Put('locked-pools/:poolAddress/tiers/:tierIndex/active')
+  async setTierActive(
+    @Param('poolAddress') poolAddress: string,
+    @Param('tierIndex') tierIndex: string,
+    @Body() body: { isActive: boolean },
+  ) {
+    return this.adminService.setTierActive({
+      poolAddress,
+      tierIndex: parseInt(tierIndex),
+      ...body,
+    });
+  }
+
+  /**
+   * Update tier APY
+   * PUT /api/v1/admin/locked-pools/:poolAddress/tiers/:tierIndex/apy
+   */
+  @Put('locked-pools/:poolAddress/tiers/:tierIndex/apy')
+  async updateTierAPY(
+    @Param('poolAddress') poolAddress: string,
+    @Param('tierIndex') tierIndex: string,
+    @Body() body: { newApyBps: number },
+  ) {
+    return this.adminService.updateTierAPY({
+      poolAddress,
+      tierIndex: parseInt(tierIndex),
+      ...body,
+    });
+  }
+
+  /**
+   * Activate Locked pool
+   * POST /api/v1/admin/locked-pools/:poolAddress/activate
+   */
+  @Post('locked-pools/:poolAddress/activate')
+  async activateLockedPool(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.activateLockedPool(poolAddress);
+  }
+
+  /**
+   * Deactivate Locked pool
+   * POST /api/v1/admin/locked-pools/:poolAddress/deactivate
+   */
+  @Post('locked-pools/:poolAddress/deactivate')
+  async deactivateLockedPool(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.deactivateLockedPool(poolAddress);
+  }
+
+  // ========== SPV ALLOCATION MANAGEMENT ==========
+
+  /**
+   * Get all SPV allocations across pools
+   * GET /api/v1/admin/spv/allocations
+   */
+  @Get('spv/allocations')
+  async getAllSPVAllocations() {
+    return this.adminService.getAllSPVAllocations();
+  }
+
+  /**
+   * Create a new SPV allocation (returns transaction payload)
+   * POST /api/v1/admin/spv/allocations
+   */
+  @Post('spv/allocations')
+  async createSPVAllocation(
+    @Body() body: { poolAddress: string; spvAddress: string; amount: string },
+  ) {
+    return this.adminService.createSPVAllocation(body);
+  }
+
+  // ========== SINGLE ASSET POOL MANAGEMENT ==========
+
+  /**
+   * Extend pool maturity date
+   * POST /api/v1/admin/pools/:poolAddress/extend-maturity
+   */
+  @Post('pools/:poolAddress/extend-maturity')
+  async extendMaturity(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { newMaturityDate: string },
+  ) {
+    return this.adminService.extendMaturity({ poolAddress, ...body });
+  }
+
+  /**
+   * Get coupon data for a pool
+   * GET /api/v1/admin/pools/:poolAddress/coupons
+   */
+  @Get('pools/:poolAddress/coupons')
+  async getPoolCouponData(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.getPoolCouponData(poolAddress);
+  }
+
+  // ========== STABLE YIELD POOL MANAGEMENT ==========
+
+  /**
+   * Cancel a pending allocation
+   * POST /api/v1/admin/allocations/:allocationId/cancel
+   */
+  @Post('allocations/:allocationId/cancel')
+  async cancelAllocation(@Param('allocationId') allocationId: string) {
+    return this.adminService.cancelAllocation({ allocationId });
+  }
+
+  /**
+   * Set pool transaction fee
+   * PUT /api/v1/admin/stable-yield/:poolAddress/fee
+   */
+  @Put('stable-yield/:poolAddress/fee')
+  async setPoolTransactionFee(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { feeBps: number },
+  ) {
+    return this.adminService.setPoolTransactionFee({ poolAddress, ...body });
+  }
+
+  /**
+   * Set pool reserve configuration
+   * PUT /api/v1/admin/stable-yield/:poolAddress/reserve-config
+   */
+  @Put('stable-yield/:poolAddress/reserve-config')
+  async setPoolReserveConfig(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { minAbsoluteReserve: string; reserveRatioBps: number },
+  ) {
+    return this.adminService.setPoolReserveConfig({ poolAddress, ...body });
+  }
+
+  /**
+   * Trigger NAV update
+   * POST /api/v1/admin/stable-yield/:poolAddress/trigger-nav-update
+   */
+  @Post('stable-yield/:poolAddress/trigger-nav-update')
+  async triggerNAVUpdate(
+    @Param('poolAddress') poolAddress: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.adminService.triggerNAVUpdate({ poolAddress, ...body });
+  }
+
+  /**
+   * Deactivate Stable Yield pool
+   * POST /api/v1/admin/stable-yield/:poolAddress/deactivate
+   */
+  @Post('stable-yield/:poolAddress/deactivate')
+  async deactivateStableYieldPool(@Param('poolAddress') poolAddress: string) {
+    return this.adminService.deactivateStableYieldPool(poolAddress);
   }
 }

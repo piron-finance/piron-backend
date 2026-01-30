@@ -223,6 +223,15 @@ export class SpvController {
   }
 
   /**
+   * GET /spv/allocations
+   * Get allocations for connected SPV
+   */
+  @Get('allocations')
+  async getSPVAllocations(@Query('spvAddress') spvAddress: string) {
+    return this.spvService.getSPVAllocations(spvAddress);
+  }
+
+  /**
    * GET /spv/preferences
    * Get all SPV preferences
    */
@@ -241,5 +250,97 @@ export class SpvController {
     @Query('spvAddress') spvAddress: string,
   ) {
     return this.spvService.getSPVPoolDetail(poolAddress, spvAddress);
+  }
+
+  // ========== ALLOCATION MANAGEMENT ==========
+
+  /**
+   * Return unused funds from allocation
+   * POST /spv/allocations/:allocationId/return-unused
+   */
+  @Post('allocations/:allocationId/return-unused')
+  async returnUnusedFunds(
+    @Param('allocationId') allocationId: string,
+    @Body() dto: { returnAmount: string },
+  ) {
+    return this.spvService.returnUnusedFunds({ allocationId, ...dto });
+  }
+
+  // ========== SINGLE ASSET POOL ACTIONS ==========
+
+  /**
+   * Confirm investment for Single Asset pool
+   * POST /spv/pools/:poolAddress/confirm-investment
+   */
+  @Post('pools/:poolAddress/confirm-investment')
+  async processInvestment(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: { actualAmount: string; proofHash: string },
+  ) {
+    return this.spvService.processInvestment({ poolAddress, ...dto });
+  }
+
+  /**
+   * Process maturity return for Single Asset pool
+   * POST /spv/pools/:poolAddress/process-maturity
+   */
+  @Post('pools/:poolAddress/process-maturity')
+  async processMaturity(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: { finalAmount: string },
+  ) {
+    return this.spvService.processMaturity({ poolAddress, ...dto });
+  }
+
+  /**
+   * Process coupon payment for Single Asset pool
+   * POST /spv/pools/:poolAddress/process-coupon
+   */
+  @Post('pools/:poolAddress/process-coupon')
+  async processCouponPayment(
+    @Param('poolAddress') poolAddress: string,
+    @Body() dto: { amount: string },
+  ) {
+    return this.spvService.processCouponPayment({ poolAddress, ...dto });
+  }
+
+  // ========== LOCKED POOL ACTIONS ==========
+
+  /**
+   * Mature locked pool allocation
+   * POST /spv/locked/allocations/:allocationId/mature
+   */
+  @Post('locked/allocations/:allocationId/mature')
+  async matureLockedAllocation(
+    @Param('allocationId') allocationId: string,
+    @Body() dto: { returnedAmount: string },
+  ) {
+    return this.spvService.matureLockedAllocation({ allocationId, ...dto });
+  }
+
+  /**
+   * Settle SPV return for a position
+   * POST /spv/locked/positions/:positionId/settle
+   */
+  @Post('locked/positions/:positionId/settle')
+  async settleSPVReturn(
+    @Param('positionId') positionId: string,
+    @Body() dto: { returnedAmount: string },
+  ) {
+    return this.spvService.settleSPVReturn({ positionId: parseInt(positionId), ...dto });
+  }
+
+  // ========== WITHDRAWAL REQUESTS ==========
+
+  /**
+   * Get user's withdrawal requests
+   * GET /spv/pools/:poolAddress/withdrawal-requests/:userAddress
+   */
+  @Get('pools/:poolAddress/withdrawal-requests/:userAddress')
+  async getUserWithdrawalRequests(
+    @Param('poolAddress') poolAddress: string,
+    @Param('userAddress') userAddress: string,
+  ) {
+    return this.spvService.getUserWithdrawalRequests(poolAddress, userAddress);
   }
 }
