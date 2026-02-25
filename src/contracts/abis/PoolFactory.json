@@ -222,12 +222,7 @@
         "indexed": true,
         "internalType": "address"
       },
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "newImplementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -260,12 +255,7 @@
         "indexed": true,
         "internalType": "address"
       },
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "newImplementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },

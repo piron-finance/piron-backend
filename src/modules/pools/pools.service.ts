@@ -12,17 +12,13 @@ import {
 
 @Injectable()
 export class PoolsService {
-  constructor(
-    private prisma: PrismaService,
-    private blockchain: BlockchainService,
-  ) {}
+  constructor(private prisma: PrismaService, private blockchain: BlockchainService) {}
 
   async findAll(query: PoolQueryDto): Promise<PaginatedPoolsDto> {
     const { page = 1, limit = 10, type, status, featured, country, region } = query;
     const skip = (page - 1) * limit;
 
     try {
-      // Build where clause
       const where = {
         isActive: true,
         ...(type && { poolType: type }),
@@ -62,7 +58,6 @@ export class PoolsService {
         },
       };
     } catch (error) {
-      // Return empty result if database not available
       return {
         data: [],
         pagination: {

@@ -4,6 +4,7 @@ import { PoolBuilderService } from './pool-builder.service';
 import { PoolCreationWatcher } from './pool-creation-watcher.service';
 import { DepositIndexer } from './deposit-indexer.service';
 import { LockedPositionIndexer } from './locked-position-indexer.service';
+import { TVLSyncService } from './tvl-sync.service';
 import { PrismaService } from '../prisma.service';
 
 @Module({
@@ -13,6 +14,7 @@ import { PrismaService } from '../prisma.service';
     PoolCreationWatcher,
     DepositIndexer,
     LockedPositionIndexer,
+    TVLSyncService,
     PrismaService,
   ],
   exports: [
@@ -21,6 +23,7 @@ import { PrismaService } from '../prisma.service';
     PoolCreationWatcher,
     DepositIndexer,
     LockedPositionIndexer,
+    TVLSyncService,
   ],
 })
 export class BlockchainModule {}

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma.service';
 import { UserType, TxStatus } from '@prisma/client';
 import LiquidityPoolABI from '../contracts/abis/LiquidityPool.json';
 import StableYieldPoolABI from '../contracts/abis/StableYieldPool.json';
+import StableYieldEscrowABI from '../contracts/abis/StableYieldEscrow.json';
 
 @Injectable()
 export class DepositIndexer implements OnModuleInit {
@@ -54,6 +55,15 @@ export class DepositIndexer implements OnModuleInit {
         poolAddress: { not: '' },
         poolType: { not: 'LOCKED' },
       },
+      select: {
+        id: true,
+        poolAddress: true,
+        poolType: true,
+        assetDecimals: true,
+        assetSymbol: true,
+        name: true,
+        escrowAddress: true,
+      },
     });
 
     const provider = this.blockchain.getProvider(chainId);
@@ -79,7 +89,15 @@ export class DepositIndexer implements OnModuleInit {
 
   private async indexPoolDeposits(
     chainId: number,
-    pool: { poolAddress: string; poolType: string; assetDecimals: number; assetSymbol: string; name: string; id: string },
+    pool: {
+      poolAddress: string;
+      poolType: string;
+      assetDecimals: number;
+      assetSymbol: string;
+      name: string;
+      id: string;
+      escrowAddress: string;
+    },
     fromBlock: number,
     toBlock: number,
   ) {
@@ -93,14 +111,119 @@ export class DepositIndexer implements OnModuleInit {
       for (const event of events) {
         await this.handleDepositEvent(chainId, pool, event as ethers.EventLog);
       }
+
+      // For Stable Yield pools, also index FundsAllocated events from escrow
+      if (pool.poolType === 'STABLE_YIELD' && pool.escrowAddress) {
+        await this.indexEscrowFundsAllocated(chainId, pool, fromBlock, toBlock);
+      }
     } catch (error) {
       this.logger.error(`Error indexing deposits for pool ${pool.poolAddress}: ${error.message}`);
     }
   }
 
+  /**
+   * Index FundsAllocated events from escrow to track fee allocation
+   */
+  private async indexEscrowFundsAllocated(
+    chainId: number,
+    pool: {
+      poolAddress: string;
+      name: string;
+      id: string;
+      escrowAddress: string;
+      assetDecimals: number;
+      assetSymbol: string;
+    },
+    fromBlock: number,
+    toBlock: number,
+  ) {
+    try {
+      const escrowContract = this.blockchain.getContract(chainId, pool.escrowAddress, StableYieldEscrowABI);
+
+      const fundsAllocatedFilter = escrowContract.filters.FundsAllocated();
+      const events = await escrowContract.queryFilter(fundsAllocatedFilter, fromBlock, toBlock);
+
+      for (const event of events) {
+        await this.handleFundsAllocatedEvent(chainId, pool, event as ethers.EventLog);
+      }
+    } catch (error) {
+      this.logger.warn(`Error indexing FundsAllocated for pool ${pool.name}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle FundsAllocated event - track fee allocation
+   */
+  private async handleFundsAllocatedEvent(
+    chainId: number,
+    pool: {
+      poolAddress: string;
+      name: string;
+      id: string;
+      escrowAddress: string;
+      assetDecimals: number;
+      assetSymbol: string;
+    },
+    event: ethers.EventLog,
+  ) {
+    const { reserveAmount, transactionFee } = event.args;
+
+    // Check if we've already processed this event (check AuditLog)
+    const existingLog = await this.prisma.auditLog.findFirst({
+      where: {
+        action: 'FEE_ALLOCATED',
+        entity: 'Pool',
+        entityId: pool.id,
+        changes: {
+          path: ['txHash'],
+          equals: event.transactionHash,
+        },
+      },
+    });
+
+    if (existingLog) {
+      return; // Already processed
+    }
+
+    const reserveDecimal = ethers.formatUnits(reserveAmount, pool.assetDecimals);
+    const feeDecimal = ethers.formatUnits(transactionFee, pool.assetDecimals);
+
+    // Log fee allocation to AuditLog
+    if (parseFloat(feeDecimal) > 0) {
+      await this.prisma.auditLog.create({
+        data: {
+          action: 'FEE_ALLOCATED',
+          entity: 'Pool',
+          entityId: pool.id,
+          changes: {
+            poolName: pool.name,
+            poolAddress: pool.poolAddress,
+            reserveAmount: reserveDecimal,
+            transactionFee: feeDecimal,
+            assetSymbol: pool.assetSymbol,
+            txHash: event.transactionHash,
+            blockNumber: event.blockNumber,
+          },
+        },
+      });
+
+      this.logger.log(
+        `💵 Fee allocated: ${feeDecimal} ${pool.assetSymbol} from deposit to ${pool.name}`,
+      );
+    }
+  }
+
   private async handleDepositEvent(
     chainId: number,
-    pool: { poolAddress: string; poolType: string; assetDecimals: number; assetSymbol: string; name: string; id: string },
+    pool: {
+      poolAddress: string;
+      poolType: string;
+      assetDecimals: number;
+      assetSymbol: string;
+      name: string;
+      id: string;
+      escrowAddress: string;
+    },
     event: ethers.EventLog,
   ) {
     const { sender, owner, assets, shares } = event.args;
@@ -192,12 +315,10 @@ export class DepositIndexer implements OnModuleInit {
     const isNewInvestor =
       parseFloat(assetsDecimal) === parseFloat(position.totalDeposited.toString());
 
+    // First update shares, deposits, and flow metrics
     await this.prisma.poolAnalytics.update({
       where: { poolId: pool.id },
       data: {
-        totalValueLocked: {
-          increment: parseFloat(assetsDecimal),
-        },
         totalShares: {
           increment: parseFloat(sharesDecimal),
         },
@@ -211,6 +332,54 @@ export class DepositIndexer implements OnModuleInit {
         depositors24h: { increment: 1 },
         volume24h: {
           increment: parseFloat(assetsDecimal),
+        },
+      },
+    });
+
+    // Then fetch accurate TVL from on-chain and update
+    try {
+      const { tvl } = await this.blockchain.getPoolTVL(
+        chainId,
+        pool.poolAddress,
+        pool.poolType as 'SINGLE_ASSET' | 'STABLE_YIELD' | 'LOCKED',
+      );
+      const tvlDecimal = parseFloat(ethers.formatUnits(tvl, pool.assetDecimals));
+
+      await this.prisma.poolAnalytics.update({
+        where: { poolId: pool.id },
+        data: { totalValueLocked: tvlDecimal },
+      });
+
+      this.logger.log(`📊 Updated TVL for ${pool.name}: ${tvlDecimal.toFixed(2)}`);
+    } catch (error) {
+      // Fallback to increment if on-chain call fails
+      this.logger.warn(`Could not fetch live TVL, using increment: ${error.message}`);
+      await this.prisma.poolAnalytics.update({
+        where: { poolId: pool.id },
+        data: {
+          totalValueLocked: {
+            increment: parseFloat(assetsDecimal),
+          },
+        },
+      });
+    }
+
+    // Create audit log entry for the deposit
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'USER_DEPOSIT',
+        entity: 'Pool',
+        entityId: pool.id,
+        changes: {
+          poolName: pool.name,
+          poolAddress: pool.poolAddress,
+          userAddress: owner.toLowerCase(),
+          amount: assetsDecimal,
+          shares: sharesDecimal,
+          assetSymbol: pool.assetSymbol,
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+          isNewInvestor,
         },
       },
     });

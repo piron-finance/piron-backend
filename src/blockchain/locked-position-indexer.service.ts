@@ -277,6 +277,30 @@ export class LockedPositionIndexer implements OnModuleInit {
       },
     });
 
+    // Create audit log entry
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'POSITION_CREATED',
+        entity: 'Pool',
+        entityId: pool.id,
+        userId: dbUser.id,
+        changes: {
+          poolName: pool.name,
+          poolAddress: pool.poolAddress,
+          positionId: Number(positionId),
+          userAddress: user.toLowerCase(),
+          principal: principalDecimal,
+          interest: interestDecimal,
+          investedAmount,
+          interestPayment: interestPayment === InterestPayment.UPFRONT ? 'UPFRONT' : 'AT_MATURITY',
+          lockEndTime: new Date(Number(lockEnd) * 1000).toISOString(),
+          assetSymbol: pool.assetSymbol,
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+        },
+      },
+    });
+
     this.logger.log(`✅ Position ${positionId} indexed: ${principalDecimal} ${pool.assetSymbol}`);
   }
 
@@ -340,6 +364,28 @@ export class LockedPositionIndexer implements OnModuleInit {
         totalShares: { decrement: Number(position.investedAmount) },
         totalWithdrawals: { increment: payoutDecimal },
         activePositions: { decrement: 1 },
+      },
+    });
+
+    // Create audit log entry
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'POSITION_REDEEMED',
+        entity: 'Pool',
+        entityId: position.poolId,
+        userId: position.userId,
+        changes: {
+          poolName: position.pool.name,
+          poolAddress: position.pool.poolAddress,
+          positionId: Number(positionId),
+          userAddress: user.toLowerCase(),
+          payout: payoutDecimal,
+          principal: Number(position.principal),
+          interest: Number(position.interest),
+          assetSymbol: position.pool.assetSymbol,
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+        },
       },
     });
 
@@ -412,6 +458,29 @@ export class LockedPositionIndexer implements OnModuleInit {
         totalWithdrawals: { increment: payoutDecimal },
         totalPenaltiesCollected: { increment: penaltyDecimal },
         activePositions: { decrement: 1 },
+      },
+    });
+
+    // Create audit log entry
+    await this.prisma.auditLog.create({
+      data: {
+        action: 'EARLY_EXIT',
+        entity: 'Pool',
+        entityId: position.poolId,
+        userId: position.userId,
+        changes: {
+          poolName: position.pool.name,
+          poolAddress: position.pool.poolAddress,
+          positionId: Number(positionId),
+          userAddress: user.toLowerCase(),
+          payout: payoutDecimal,
+          penalty: penaltyDecimal,
+          interestEarned: interestEarnedDecimal,
+          principal: Number(position.principal),
+          assetSymbol: position.pool.assetSymbol,
+          txHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+        },
       },
     });
 

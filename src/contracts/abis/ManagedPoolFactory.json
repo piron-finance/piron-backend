@@ -62,9 +62,7 @@
           { "name": "poolName", "type": "string", "internalType": "string" },
           { "name": "poolSymbol", "type": "string", "internalType": "string" },
           { "name": "spvAddress", "type": "address", "internalType": "address" },
-          { "name": "supportedTenors", "type": "uint256[]", "internalType": "uint256[]" },
-          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" },
-          { "name": "underlyingPools", "type": "address[]", "internalType": "address[]" }
+          { "name": "minInvestment", "type": "uint256", "internalType": "uint256" }
         ]
       }
     ],
@@ -79,6 +77,13 @@
     "name": "deploymentNonce",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "feeManager",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "stateMutability": "view"
   },
   {
@@ -167,8 +172,22 @@
   },
   {
     "type": "function",
+    "name": "setFeeManager",
+    "inputs": [{ "name": "_feeManager", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setLockedPoolManager",
     "inputs": [{ "name": "_lockedPoolManager", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setYieldReserve",
+    "inputs": [{ "name": "_yieldReserve", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -239,6 +258,13 @@
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "yieldReserve",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
     "type": "event",
     "name": "ImplementationUpdated",
     "inputs": [
@@ -249,12 +275,7 @@
         "indexed": true,
         "internalType": "address"
       },
-      {
-        "name": "newImplementation",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
+      { "name": "newImplementation", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },

@@ -2,6 +2,20 @@
   { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
+    "name": "BPS",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_DEPOSIT_FEE",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_EXTENSION_DAYS",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -127,6 +141,13 @@
   },
   {
     "type": "function",
+    "name": "defaultDepositFeeBps",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "distributeCouponPayment",
     "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
@@ -158,10 +179,24 @@
   },
   {
     "type": "function",
+    "name": "feeManager",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "forceCloseEpoch",
     "inputs": [{ "name": "liquidityPool", "type": "address", "internalType": "address" }],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getEffectiveDepositFee",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -357,6 +392,13 @@
   },
   {
     "type": "function",
+    "name": "poolDepositFeeBps",
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "poolFundsReturnedBySPV",
     "inputs": [{ "name": "pool", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -532,6 +574,30 @@
   },
   {
     "type": "function",
+    "name": "setDefaultDepositFee",
+    "inputs": [{ "name": "feeBps", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setFeeManager",
+    "inputs": [{ "name": "feeManager_", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPoolDepositFee",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "feeBps", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setTimelockController",
     "inputs": [{ "name": "newTimelockController", "type": "address", "internalType": "address" }],
     "outputs": [],
@@ -676,6 +742,14 @@
   },
   {
     "type": "event",
+    "name": "DefaultDepositFeeUpdated",
+    "inputs": [
+      { "name": "feeBps", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Deposit",
     "inputs": [
       { "name": "liquidityPool", "type": "address", "indexed": false, "internalType": "address" },
@@ -683,6 +757,17 @@
       { "name": "receiver", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DepositFeeCollected",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "depositor", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "fee", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -714,6 +799,14 @@
       { "name": "totalAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "totalShares", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeManagerUpdated",
+    "inputs": [
+      { "name": "feeManager", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -809,6 +902,15 @@
       { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "cancelledBy", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PoolDepositFeeUpdated",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "feeBps", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -966,6 +1068,7 @@
   { "type": "error", "name": "AssetNotApproved", "inputs": [] },
   { "type": "error", "name": "CallerMustBePool", "inputs": [] },
   { "type": "error", "name": "CallerNotPool", "inputs": [] },
+  { "type": "error", "name": "ContractPaused", "inputs": [] },
   { "type": "error", "name": "CouponConfigMismatch", "inputs": [] },
   { "type": "error", "name": "DiscountRateTooHigh", "inputs": [] },
   {
@@ -978,6 +1081,7 @@
   { "type": "error", "name": "ExceedsRefundAmount", "inputs": [] },
   { "type": "error", "name": "ExceedsTarget", "inputs": [] },
   { "type": "error", "name": "FailedCall", "inputs": [] },
+  { "type": "error", "name": "FeeTooHigh", "inputs": [] },
   { "type": "error", "name": "FundingEnded", "inputs": [] },
   { "type": "error", "name": "InsufficientAllowance", "inputs": [] },
   { "type": "error", "name": "InsufficientLiquidity", "inputs": [] },
@@ -985,9 +1089,12 @@
   { "type": "error", "name": "InsufficientShares", "inputs": [] },
   { "type": "error", "name": "InsufficientSpvBalance", "inputs": [] },
   { "type": "error", "name": "InvalidAccessManager", "inputs": [] },
+  { "type": "error", "name": "InvalidAddress", "inputs": [] },
   { "type": "error", "name": "InvalidAmount", "inputs": [] },
+  { "type": "error", "name": "InvalidConfig", "inputs": [] },
   { "type": "error", "name": "InvalidCouponDate", "inputs": [] },
   { "type": "error", "name": "InvalidCouponDates", "inputs": [] },
+  { "type": "error", "name": "InvalidExtension", "inputs": [] },
   { "type": "error", "name": "InvalidInitialization", "inputs": [] },
   { "type": "error", "name": "InvalidOwner", "inputs": [] },
   { "type": "error", "name": "InvalidPool", "inputs": [] },
@@ -995,6 +1102,7 @@
   { "type": "error", "name": "InvalidRegistry", "inputs": [] },
   { "type": "error", "name": "InvalidSender", "inputs": [] },
   { "type": "error", "name": "InvalidShares", "inputs": [] },
+  { "type": "error", "name": "InvalidStatus", "inputs": [] },
   { "type": "error", "name": "InvalidUser", "inputs": [] },
   { "type": "error", "name": "NoCouponsDistributed", "inputs": [] },
   { "type": "error", "name": "NoCouponsToDistribute", "inputs": [] },
@@ -1012,10 +1120,16 @@
   { "type": "error", "name": "NotPendingInvestment", "inputs": [] },
   { "type": "error", "name": "OnlyFactory", "inputs": [] },
   { "type": "error", "name": "OnlyPool", "inputs": [] },
+  { "type": "error", "name": "OnlyTimelock", "inputs": [] },
   { "type": "error", "name": "Paused", "inputs": [] },
   { "type": "error", "name": "PoolNotRegistered", "inputs": [] },
   { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] },
   { "type": "error", "name": "RoleDelayNotMet", "inputs": [] },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [{ "name": "token", "type": "address", "internalType": "address" }]
+  },
   { "type": "error", "name": "SlippageProtectionTriggered", "inputs": [] },
   { "type": "error", "name": "UUPSUnauthorizedCallContext", "inputs": [] },
   {
@@ -1023,5 +1137,6 @@
     "name": "UUPSUnsupportedProxiableUUID",
     "inputs": [{ "name": "slot", "type": "bytes32", "internalType": "bytes32" }]
   },
+  { "type": "error", "name": "Unauthorized", "inputs": [] },
   { "type": "error", "name": "WithdrawalNotAllowed", "inputs": [] }
 ]

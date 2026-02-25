@@ -9,11 +9,13 @@ import { TransactionsModule } from './modules/transactions/transactions.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SpvModule } from './modules/spv/spv.module';
 import { DepositsModule } from './modules/deposits/deposits.module';
+import { WithdrawalsModule } from './modules/withdrawals/withdrawals.module';
+import { FeesModule } from './modules/fees/fees.module';
+import { YieldReserveModule } from './modules/yield-reserve/yield-reserve.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
 
 @Module({
   imports: [
-    // Bull queue configuration for event processing
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -34,6 +36,9 @@ import { BlockchainModule } from './blockchain/blockchain.module';
     AdminModule,
     SpvModule,
     DepositsModule,
+    WithdrawalsModule,
+    FeesModule,
+    YieldReserveModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],
