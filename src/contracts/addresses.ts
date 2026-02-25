@@ -1,3 +1,6 @@
+import { DEV_ADDRESSES } from './addresses.dev';
+import { PROD_ADDRESSES } from './addresses.prod';
+
 export const NETWORKS = {
   BASE_SEPOLIA: {
     chainId: 84532,
@@ -31,10 +34,12 @@ interface NetworkContracts {
   // Locked Pool
   lockedPoolManager: string;
 
-  // Treasury (defaults to timelockController if not set)
+  // Protocol Capital
+  yieldReserveEscrow: string;
+  feeManager: string;
+
+  // Treasury (defaults to timelockController)
   treasury?: string;
-  feeManager?: string;
-  yieldReserveEscrow?: string;
 
   // Assets
   mockUSDC?: string;
@@ -42,44 +47,46 @@ interface NetworkContracts {
   cngn?: string;
 }
 
+/**
+ * Contract addresses by chain ID
+ * 
+ * Development (84532): addresses.dev.ts
+ * Production (8453): addresses.prod.ts
+ */
 export const CONTRACT_ADDRESSES: Record<number, NetworkContracts> = {
+  // Base Sepolia (Development/Testnet)
   84532: {
-    accessManager: '0x123Dbe7E9a7f7E98711FD032f9E0C1E4761771C9',
-    timelockController: '0x03f80e9b17A8D961AF2C8A527F6604C28723a983',
-    upgradeGuardian: '0xeaA01Eb0835D7B4AEed71e9D23ce2E3b14ddAe09',
-
-    poolRegistry: '0x096F3405F1c583B1a4678F6fCA5570886BAbE0ba',
-    poolFactory: '0xCA31b83bE4774D7F20Cbbe677e1fFcDC484e7FFa',
-    manager: '0xe81B962109FA5A2644Eb7150Ae979782F9055314',
-
-    stableYieldManager: '0xb4c02cF73a0F219f491AC65DdEc0e59DF64d339d',
-    managedPoolFactory: '0x5a7937701E69A7EFC229161e13488B0addD6d46b',
-
-    lockedPoolManager: '0xbdf5C0D1B39ABAe590620472ee3e33E0D18b2516',
-
-    yieldReserveEscrow: "0x108538dF32375730021e7cb26Cdab14c4AC39bAA",
-    feeManager: "0x38c1764bC2cdcBf85CBF7202BC586AEf04dcF999",
-
-    mockUSDC: '0x94ac688dEd59cf284274DbD289AC6acfd2d5721C',
-    usdc: '0xdB787674289f636E96864De93c952d0390B5bC58',
-    cngn: '0x929A08903C22440182646Bb450a67178Be402f7f',
+    accessManager: DEV_ADDRESSES.accessManager,
+    timelockController: DEV_ADDRESSES.timelockController,
+    upgradeGuardian: DEV_ADDRESSES.upgradeGuardian,
+    poolRegistry: DEV_ADDRESSES.poolRegistry,
+    poolFactory: DEV_ADDRESSES.poolFactory,
+    manager: DEV_ADDRESSES.manager,
+    stableYieldManager: DEV_ADDRESSES.stableYieldManager,
+    managedPoolFactory: DEV_ADDRESSES.managedPoolFactory,
+    lockedPoolManager: DEV_ADDRESSES.lockedPoolManager,
+    yieldReserveEscrow: DEV_ADDRESSES.yieldReserveEscrow,
+    feeManager: DEV_ADDRESSES.feeManager,
+    mockUSDC: DEV_ADDRESSES.mockUSDC,
+    usdc: DEV_ADDRESSES.usdc,
+    cngn: DEV_ADDRESSES.cngn,
   },
 
+  // Base Mainnet (Production)
   8453: {
-    accessManager: '',
-    timelockController: '',
-    upgradeGuardian: '',
-    poolRegistry: '',
-    poolFactory: '',
-    manager: '',
-    stableYieldManager: '',
-    managedPoolFactory: '',
-    lockedPoolManager: '',
-    yieldReserveEscrow: '',
-    feeManager: '',
-    mockUSDC: '',
-    usdc: '',
-    cngn: '',
+    accessManager: PROD_ADDRESSES.accessManager,
+    timelockController: PROD_ADDRESSES.timelockController,
+    upgradeGuardian: PROD_ADDRESSES.upgradeGuardian,
+    poolRegistry: PROD_ADDRESSES.poolRegistry,
+    poolFactory: PROD_ADDRESSES.poolFactory,
+    manager: PROD_ADDRESSES.manager,
+    stableYieldManager: PROD_ADDRESSES.stableYieldManager,
+    managedPoolFactory: PROD_ADDRESSES.managedPoolFactory,
+    lockedPoolManager: PROD_ADDRESSES.lockedPoolManager,
+    yieldReserveEscrow: PROD_ADDRESSES.yieldReserveEscrow,
+    feeManager: PROD_ADDRESSES.feeManager,
+    usdc: PROD_ADDRESSES.usdc,
+    cngn: PROD_ADDRESSES.cngn,
   },
 } as const;
 
@@ -97,4 +104,16 @@ export function getNetworkConfig(chainId: ChainId) {
   if (chainId === 84532) return NETWORKS.BASE_SEPOLIA;
   if (chainId === 8453) return NETWORKS.BASE_MAINNET;
   throw new Error(`Unsupported chain ${chainId}`);
+}
+
+export function getDeploymentInfo() {
+  const env = process.env.NODE_ENV || 'development';
+  const isProd = env === 'production';
+  
+  return {
+    environment: env,
+    chainId: isProd ? 8453 : 84532,
+    network: isProd ? NETWORKS.BASE_MAINNET : NETWORKS.BASE_SEPOLIA,
+    deploymentVersion: isProd ? PROD_ADDRESSES.deploymentVersion : DEV_ADDRESSES.deploymentVersion,
+  };
 }
