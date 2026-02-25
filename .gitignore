@@ -41,6 +41,10 @@ road/
 admin-need.md
 API_DOCUMENTATION.md
 FRONTEND_API_DOCUMENTATION.md
+API_ENDPOINTS.md
+README.md
+README*.md
+*.README.md
 
 # Prisma
 # Note: Keep migrations in git for deployment
@@ -50,3 +54,6 @@ FRONTEND_API_DOCUMENTATION.md
 *.temp
 
 scripts/
+
+# Contract source code (for context only, not tracked)
+src/contracts/sources/

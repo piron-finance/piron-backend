@@ -16,6 +16,20 @@
   },
   {
     "type": "function",
+    "name": "MAX_INSTRUMENTS_PER_POOL",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_PENDING_ALLOCATIONS",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_TRANSACTION_FEE",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -67,16 +81,6 @@
   },
   {
     "type": "function",
-    "name": "calculateAssetValueView",
-    "inputs": [
-      { "name": "poolAddress", "type": "address", "internalType": "address" },
-      { "name": "shares", "type": "uint256", "internalType": "uint256" }
-    ],
-    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "calculateNAVPerShare",
     "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "navPerShare", "type": "uint256", "internalType": "uint256" }],
@@ -101,16 +105,6 @@
   },
   {
     "type": "function",
-    "name": "calculateSharesView",
-    "inputs": [
-      { "name": "poolAddress", "type": "address", "internalType": "address" },
-      { "name": "amount", "type": "uint256", "internalType": "uint256" }
-    ],
-    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "calculateTransactionFee",
     "inputs": [
       { "name": "poolAddress", "type": "address", "internalType": "address" },
@@ -118,13 +112,6 @@
     ],
     "outputs": [{ "name": "fee", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "cancelPendingAllocation",
-    "inputs": [{ "name": "allocationId", "type": "bytes32", "internalType": "bytes32" }],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -169,6 +156,23 @@
     "type": "function",
     "name": "defaultTransactionFeeBps",
     "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "deployProtocolCapital",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getAvailableProtocolCapital",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
@@ -294,6 +298,16 @@
   },
   {
     "type": "function",
+    "name": "getPoolProtocolFunds",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "fromReserve", "type": "uint256", "internalType": "uint256" },
+      { "name": "directDeposit", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getPoolReserveConfig",
     "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
     "outputs": [
@@ -328,6 +342,19 @@
   },
   {
     "type": "function",
+    "name": "getQueueProcessingInfo",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "pendingCount", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalPendingValue", "type": "uint256", "internalType": "uint256" },
+      { "name": "nextDeadline", "type": "uint256", "internalType": "uint256" },
+      { "name": "availableLiquidity", "type": "uint256", "internalType": "uint256" },
+      { "name": "canProcessNow", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getTotalSPVAllocation",
     "inputs": [{ "name": "spvAddress", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
@@ -352,6 +379,32 @@
       { "name": "tail", "type": "uint256", "internalType": "uint256" },
       { "name": "pending", "type": "uint256", "internalType": "uint256" },
       { "name": "totalPendingValue", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getWithdrawalRequest",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "requestId", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IStableYieldTypes.WithdrawalRequest",
+        "components": [
+          { "name": "user", "type": "address", "internalType": "address" },
+          { "name": "shares", "type": "uint256", "internalType": "uint256" },
+          { "name": "requestTime", "type": "uint256", "internalType": "uint256" },
+          { "name": "deadline", "type": "uint256", "internalType": "uint256" },
+          { "name": "estimatedValue", "type": "uint256", "internalType": "uint256" },
+          { "name": "feeAmount", "type": "uint256", "internalType": "uint256" },
+          { "name": "processed", "type": "bool", "internalType": "bool" },
+          { "name": "processedTime", "type": "uint256", "internalType": "uint256" }
+        ]
+      }
     ],
     "stateMutability": "view"
   },
@@ -531,6 +584,16 @@
   },
   {
     "type": "function",
+    "name": "recallProtocolCapital",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "recordCouponPayment",
     "inputs": [
       { "name": "poolAddress", "type": "address", "internalType": "address" },
@@ -613,6 +676,23 @@
       { "name": "feeBps", "type": "uint256", "internalType": "uint256" }
     ],
     "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setYieldReserve",
+    "inputs": [{ "name": "yieldReserve_", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settleWithdrawals",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "requestIds", "type": "uint256[]", "internalType": "uint256[]" }
+    ],
+    "outputs": [{ "name": "processed", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "nonpayable"
   },
   {
@@ -705,10 +785,19 @@
       { "name": "user", "type": "address", "internalType": "address" },
       { "name": "shares", "type": "uint256", "internalType": "uint256" },
       { "name": "requestTime", "type": "uint256", "internalType": "uint256" },
+      { "name": "deadline", "type": "uint256", "internalType": "uint256" },
       { "name": "estimatedValue", "type": "uint256", "internalType": "uint256" },
+      { "name": "feeAmount", "type": "uint256", "internalType": "uint256" },
       { "name": "processed", "type": "bool", "internalType": "bool" },
       { "name": "processedTime", "type": "uint256", "internalType": "uint256" }
     ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "yieldReserve",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "stateMutability": "view"
   },
   {
@@ -763,12 +852,7 @@
     "inputs": [
       { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "allocationId", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
-      {
-        "name": "returnedAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
+      { "name": "returnedAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
@@ -879,12 +963,7 @@
     "name": "PoolReadyForAllocation",
     "inputs": [
       { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
-      {
-        "name": "availableAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
+      { "name": "availableAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
@@ -911,6 +990,24 @@
   },
   {
     "type": "event",
+    "name": "ProtocolCapitalDeployed",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProtocolCapitalRecalled",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ReserveConfigUpdated",
     "inputs": [
       { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
@@ -920,12 +1017,7 @@
         "indexed": false,
         "internalType": "uint256"
       },
-      {
-        "name": "reserveRatioBps",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "reserveRatioBps", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -970,12 +1062,7 @@
       { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "requestId", "type": "uint256", "indexed": true, "internalType": "uint256" },
       { "name": "actualValue", "type": "uint256", "indexed": false, "internalType": "uint256" },
-      {
-        "name": "penaltyDeducted",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "penaltyDeducted", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -1004,14 +1091,25 @@
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "YieldReserveUpdated",
+    "inputs": [
+      { "name": "yieldReserve", "type": "address", "indexed": true, "internalType": "address" }
+    ],
+    "anonymous": false
+  },
+  {
     "type": "error",
     "name": "AddressEmptyCode",
     "inputs": [{ "name": "target", "type": "address", "internalType": "address" }]
   },
+  { "type": "error", "name": "AllocationExists", "inputs": [] },
   { "type": "error", "name": "AllocationExpired", "inputs": [] },
   { "type": "error", "name": "AllocationMismatch", "inputs": [] },
   { "type": "error", "name": "AllocationNotFound", "inputs": [] },
   { "type": "error", "name": "AllocationNotPending", "inputs": [] },
+  { "type": "error", "name": "AssetNotApproved", "inputs": [] },
+  { "type": "error", "name": "BelowMinimum", "inputs": [] },
   {
     "type": "error",
     "name": "ERC1967InvalidImplementation",
@@ -1019,22 +1117,30 @@
   },
   { "type": "error", "name": "ERC1967NonPayable", "inputs": [] },
   { "type": "error", "name": "ExceedsAllocation", "inputs": [] },
+  { "type": "error", "name": "FactoryAlreadySet", "inputs": [] },
   { "type": "error", "name": "FailedCall", "inputs": [] },
-  { "type": "error", "name": "HoldingPeriod", "inputs": [] },
-  { "type": "error", "name": "InstrumentNotFound", "inputs": [] },
+  { "type": "error", "name": "FeeTooHigh", "inputs": [] },
+  { "type": "error", "name": "InstrumentNotActive", "inputs": [] },
   { "type": "error", "name": "InsufficientFunds", "inputs": [] },
-  { "type": "error", "name": "InsufficientReserve", "inputs": [] },
+  { "type": "error", "name": "InsufficientLiquidity", "inputs": [] },
   { "type": "error", "name": "InvalidAddress", "inputs": [] },
   { "type": "error", "name": "InvalidAmount", "inputs": [] },
+  { "type": "error", "name": "InvalidCouponFrequency", "inputs": [] },
+  { "type": "error", "name": "InvalidDecimals", "inputs": [] },
   { "type": "error", "name": "InvalidFaceValue", "inputs": [] },
   { "type": "error", "name": "InvalidInitialization", "inputs": [] },
+  { "type": "error", "name": "InvalidInstrument", "inputs": [] },
   { "type": "error", "name": "InvalidMaturity", "inputs": [] },
   { "type": "error", "name": "InvalidStatus", "inputs": [] },
+  { "type": "error", "name": "MaxAllocations", "inputs": [] },
   { "type": "error", "name": "NotAllocationSPV", "inputs": [] },
   { "type": "error", "name": "NotInitializing", "inputs": [] },
-  { "type": "error", "name": "NotReady", "inputs": [] },
-  { "type": "error", "name": "PoolExists", "inputs": [] },
+  { "type": "error", "name": "NotMaturedYet", "inputs": [] },
+  { "type": "error", "name": "OnlyFactory", "inputs": [] },
+  { "type": "error", "name": "OnlyPool", "inputs": [] },
+  { "type": "error", "name": "PoolAlreadyRegistered", "inputs": [] },
   { "type": "error", "name": "PoolNotFound", "inputs": [] },
+  { "type": "error", "name": "RatioTooHigh", "inputs": [] },
   { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] },
   {
     "type": "error",

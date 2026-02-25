@@ -2,6 +2,20 @@
   { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
+    "name": "BPS",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_DEPOSIT_FEE",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_TIERS",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint8", "internalType": "uint8" }],
@@ -128,10 +142,28 @@
       { "name": "user", "type": "address", "internalType": "address" },
       { "name": "amountOwed", "type": "uint256", "internalType": "uint256" },
       { "name": "reserveLoan", "type": "uint256", "internalType": "uint256" },
+      { "name": "pendingPenalty", "type": "uint256", "internalType": "uint256" },
       { "name": "exitTime", "type": "uint256", "internalType": "uint256" },
       { "name": "settled", "type": "bool", "internalType": "bool" }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "defaultDepositFeeBps",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "deployProtocolCapital",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -156,6 +188,20 @@
   },
   {
     "type": "function",
+    "name": "feeManager",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAvailableProtocolCapital",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getDebtPosition",
     "inputs": [{ "name": "positionId", "type": "uint256", "internalType": "uint256" }],
     "outputs": [
@@ -168,11 +214,19 @@
           { "name": "user", "type": "address", "internalType": "address" },
           { "name": "amountOwed", "type": "uint256", "internalType": "uint256" },
           { "name": "reserveLoan", "type": "uint256", "internalType": "uint256" },
+          { "name": "pendingPenalty", "type": "uint256", "internalType": "uint256" },
           { "name": "exitTime", "type": "uint256", "internalType": "uint256" },
           { "name": "settled", "type": "bool", "internalType": "bool" }
         ]
       }
     ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getEffectiveDepositFee",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
@@ -257,17 +311,23 @@
           { "name": "totalPrincipalLocked", "type": "uint256", "internalType": "uint256" },
           { "name": "totalInterestCommitted", "type": "uint256", "internalType": "uint256" },
           { "name": "totalInterestPaidUpfront", "type": "uint256", "internalType": "uint256" },
-          {
-            "name": "totalInterestPendingMaturity",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
+          { "name": "totalInterestPendingMaturity", "type": "uint256", "internalType": "uint256" },
           { "name": "totalInvestedAmount", "type": "uint256", "internalType": "uint256" },
           { "name": "totalExpectedMaturityPayout", "type": "uint256", "internalType": "uint256" },
           { "name": "activePositions", "type": "uint256", "internalType": "uint256" },
           { "name": "totalPositions", "type": "uint256", "internalType": "uint256" }
         ]
       }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolProtocolFunds",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "fromReserve", "type": "uint256", "internalType": "uint256" },
+      { "name": "directDeposit", "type": "uint256", "internalType": "uint256" }
     ],
     "stateMutability": "view"
   },
@@ -363,6 +423,20 @@
           { "name": "canEarlyExit", "type": "bool", "internalType": "bool" }
         ]
       }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSettleableDebt",
+    "inputs": [{ "name": "poolAddress", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "positionIds", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "loanAmounts", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "penaltyAmounts", "type": "uint256[]", "internalType": "uint256[]" },
+      { "name": "totalLoanSettleable", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalPenaltySettleable", "type": "uint256", "internalType": "uint256" },
+      { "name": "escrowAvailable", "type": "uint256", "internalType": "uint256" }
     ],
     "stateMutability": "view"
   },
@@ -472,6 +546,13 @@
   },
   {
     "type": "function",
+    "name": "poolDepositFeeBps",
+    "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "poolEscrows",
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
@@ -541,11 +622,7 @@
       { "name": "lockStart", "type": "uint256", "internalType": "uint256" },
       { "name": "lockEnd", "type": "uint256", "internalType": "uint256" },
       { "name": "tierIndex", "type": "uint8", "internalType": "uint8" },
-      {
-        "name": "status",
-        "type": "uint8",
-        "internalType": "enum ILockedPoolTypes.PositionStatus"
-      },
+      { "name": "status", "type": "uint8", "internalType": "enum ILockedPoolTypes.PositionStatus" },
       { "name": "actualPayout", "type": "uint256", "internalType": "uint256" },
       { "name": "penaltyPaid", "type": "uint256", "internalType": "uint256" },
       { "name": "interestEarned", "type": "uint256", "internalType": "uint256" },
@@ -580,6 +657,16 @@
     "inputs": [],
     "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "recallProtocolCapital",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -635,8 +722,32 @@
   },
   {
     "type": "function",
+    "name": "setDefaultDepositFee",
+    "inputs": [{ "name": "feeBps", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setFeeManager",
+    "inputs": [{ "name": "feeManager_", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setManagedPoolFactory",
     "inputs": [{ "name": "_factory", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPoolDepositFee",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "feeBps", "type": "uint256", "internalType": "uint256" }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
@@ -660,25 +771,12 @@
   },
   {
     "type": "function",
-    "name": "settleSPVReturn",
+    "name": "settlePoolDebt",
     "inputs": [
-      { "name": "positionId", "type": "uint256", "internalType": "uint256" },
-      { "name": "returnedAmount", "type": "uint256", "internalType": "uint256" }
+      { "name": "poolAddress", "type": "address", "internalType": "address" },
+      { "name": "positionIds", "type": "uint256[]", "internalType": "uint256[]" }
     ],
-    "outputs": [
-      {
-        "name": "settlement",
-        "type": "tuple",
-        "internalType": "struct ILockedPoolTypes.SPVSettlement",
-        "components": [
-          { "name": "positionId", "type": "uint256", "internalType": "uint256" },
-          { "name": "returnedAmount", "type": "uint256", "internalType": "uint256" },
-          { "name": "userPayout", "type": "uint256", "internalType": "uint256" },
-          { "name": "protocolYield", "type": "uint256", "internalType": "uint256" },
-          { "name": "loanRepayment", "type": "uint256", "internalType": "uint256" }
-        ]
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -712,6 +810,17 @@
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferPositionOwnership",
+    "inputs": [
+      { "name": "positionId", "type": "uint256", "internalType": "uint256" },
+      { "name": "newOwner", "type": "address", "internalType": "address" },
+      { "name": "caller", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -792,6 +901,41 @@
   },
   {
     "type": "event",
+    "name": "DebtSettled",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "positionId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      {
+        "name": "reserveLoanRepaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      { "name": "penaltyRecorded", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DefaultDepositFeeUpdated",
+    "inputs": [
+      { "name": "feeBps", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DepositFeeCollected",
+    "inputs": [
+      { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "depositor", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "fee", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "EarlyExitProcessed",
     "inputs": [
       { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
@@ -800,6 +944,14 @@
       { "name": "payout", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "penalty", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "interestEarned", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeManagerUpdated",
+    "inputs": [
+      { "name": "feeManager", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -839,6 +991,15 @@
   },
   {
     "type": "event",
+    "name": "PoolDepositFeeUpdated",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "feeBps", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PoolRegistered",
     "inputs": [
       { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
@@ -856,12 +1017,7 @@
       { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "positionId", "type": "uint256", "indexed": true, "internalType": "uint256" },
       { "name": "principal", "type": "uint256", "indexed": false, "internalType": "uint256" },
-      {
-        "name": "interestAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
+      { "name": "interestAmount", "type": "uint256", "indexed": false, "internalType": "uint256" },
       {
         "name": "paymentChoice",
         "type": "uint8",
@@ -885,6 +1041,16 @@
   },
   {
     "type": "event",
+    "name": "PositionOwnershipTransferred",
+    "inputs": [
+      { "name": "positionId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      { "name": "from", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "to", "type": "address", "indexed": true, "internalType": "address" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PositionRedeemed",
     "inputs": [
       { "name": "poolAddress", "type": "address", "indexed": true, "internalType": "address" },
@@ -902,18 +1068,26 @@
       { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "oldPositionId", "type": "uint256", "indexed": true, "internalType": "uint256" },
       { "name": "newPositionId", "type": "uint256", "indexed": false, "internalType": "uint256" },
-      {
-        "name": "principalRolled",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "interestHandled",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
+      { "name": "principalRolled", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "interestHandled", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProtocolCapitalDeployed",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProtocolCapitalRecalled",
+    "inputs": [
+      { "name": "pool", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -958,6 +1132,7 @@
   { "type": "error", "name": "InvalidStatus", "inputs": [] },
   { "type": "error", "name": "InvalidTier", "inputs": [] },
   { "type": "error", "name": "NoYieldReserve", "inputs": [] },
+  { "type": "error", "name": "NotAllocationSPV", "inputs": [] },
   { "type": "error", "name": "NotInitializing", "inputs": [] },
   { "type": "error", "name": "NotMatured", "inputs": [] },
   { "type": "error", "name": "NotOwner", "inputs": [] },

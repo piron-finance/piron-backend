@@ -1970,30 +1970,34 @@ export class SpvService {
     let minRequired: number;
     let maxAllowed: number;
     let needsRebalance: boolean;
+    let targetRatioBps: number;
+    let totalNAV: number;
 
     try {
-      // Fetch escrow data and pool NAV to calculate reserve status
-      const [escrowData, totalNAVRaw] = await Promise.all([
+      const manager = this.blockchain.getStableYieldManager(chainId);
+      const [escrowData, totalNAVRaw, reserveConfig] = await Promise.all([
         this.blockchain.getEscrowData(chainId, escrowAddress),
         this.blockchain.calculatePoolNAV(chainId, pool.poolAddress),
+        manager.getPoolReserveConfig(pool.poolAddress),
       ]);
 
-      const totalNAV = Number(ethers.formatUnits(totalNAVRaw, decimals));
-      currentReserve = Number(ethers.formatUnits(escrowData.cashBuffer, decimals));
+      totalNAV = Number(ethers.formatUnits(totalNAVRaw, decimals));
+      currentReserve = Number(ethers.formatUnits(escrowData.poolReserves, decimals));
       
-      // Target reserve is 10% of total NAV
-      const targetReserveRatioBps = 1000; // 10%
-      targetReserve = totalNAV * (targetReserveRatioBps / 10000);
+    
+      const minAbsoluteReserve = Number(ethers.formatUnits(reserveConfig.minAbsoluteReserve, decimals));
+      targetRatioBps = Number(reserveConfig.reserveRatioBps); // e.g., 1000 = 10%
       
-      // Calculate actual reserve ratio as percentage
+     
+      const targetFromRatio = totalNAV * (targetRatioBps / 10000);
+      targetReserve = Math.max(targetFromRatio, minAbsoluteReserve);
+      
       reserveRatio = totalNAV > 0 ? (currentReserve / totalNAV) * 100 : 0;
       
-      // Rebalance needed if outside 8-12% range
-      needsRebalance = reserveRatio < 8 || reserveRatio > 12;
-
-      // Calculate min/max reserves based on the 8-12% range
-      minRequired = totalNAV * 0.08; // 8% minimum
-      maxAllowed = totalNAV * 0.12; // 12% maximum
+      minRequired = targetReserve * 0.8;
+      maxAllowed = targetReserve * 1.2;
+      
+      needsRebalance = currentReserve < minRequired || currentReserve > maxAllowed;
     } catch (error) {
       this.logger.error(
         `Failed to get reserve status for pool ${pool.poolAddress}: ${error.message}`,
@@ -2004,9 +2008,10 @@ export class SpvService {
       );
     }
 
-    const availableToInvest = Math.max(0, currentReserve - targetReserve);
+    const availableToInvest = currentReserve;
 
-    // Determine reserve status label
+    const excessOverTarget = Math.max(0, currentReserve - targetReserve);
+
     let reserveStatusLabel: string;
     let rebalanceAction: 'invest' | 'liquidate' | null = null;
 
@@ -2297,13 +2302,16 @@ export class SpvService {
         isAssignedToMe: pool.spvAddress?.toLowerCase() === spvAddress.toLowerCase(),
       },
       reserves: {
-        current: currentReserve.toFixed(2),
-        target: targetReserve.toFixed(2),
-        targetRatio: '10.00',
-        currentRatio: reserveRatio.toFixed(2),
-        minRequired: minRequired.toFixed(2),
-        maxAllowed: maxAllowed.toFixed(2),
-        availableToInvest: availableToInvest.toFixed(2),
+        totalNAV: totalNAV.toFixed(2), // Total pool value from contract
+        current: currentReserve.toFixed(2), // From escrow.getCashBuffer()
+        target: targetReserve.toFixed(2), // Calculated from reserveConfig
+        targetRatioBps: targetRatioBps, // From contract getPoolReserveConfig()
+        targetRatioPercent: (targetRatioBps / 100).toFixed(2), // e.g., "10.00" for 1000 bps
+        currentRatioPercent: reserveRatio.toFixed(2), // Actual ratio as percentage
+        minRequired: minRequired.toFixed(2), // 80% of target
+        maxAllowed: maxAllowed.toFixed(2), // 120% of target
+        availableToInvest: availableToInvest.toFixed(2), // Full cash buffer available
+        excessOverTarget: excessOverTarget.toFixed(2), // Amount above target reserve
         status: reserveStatusLabel,
         needsRebalance,
         rebalanceAction,

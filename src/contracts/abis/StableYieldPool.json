@@ -2,7 +2,14 @@
   { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
-    "name": "MINIMUM_HOLDING_PERIOD",
+    "name": "DEFAULT_HOLDING_PERIOD",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_HOLDING_PERIOD",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
@@ -109,6 +116,13 @@
     "name": "escrow",
     "inputs": [],
     "outputs": [{ "name": "", "type": "address", "internalType": "contract StableYieldEscrow" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getMinimumHoldingPeriod",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
@@ -261,6 +275,13 @@
   },
   {
     "type": "function",
+    "name": "minimumHoldingPeriod",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "mint",
     "inputs": [
       { "name": "shares", "type": "uint256", "internalType": "uint256" },
@@ -334,6 +355,13 @@
       { "name": "owner", "type": "address", "internalType": "address" }
     ],
     "outputs": [{ "name": "assets", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMinimumHoldingPeriod",
+    "inputs": [{ "name": "newPeriod", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -438,6 +466,15 @@
       { "name": "owner", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "assets", "type": "uint256", "indexed": false, "internalType": "uint256" },
       { "name": "shares", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "HoldingPeriodUpdated",
+    "inputs": [
+      { "name": "oldPeriod", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "newPeriod", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },

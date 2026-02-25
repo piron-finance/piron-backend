@@ -6,6 +6,7 @@ import ManagerABI from '../contracts/abis/Manager.json';
 import StableYieldManagerABI from '../contracts/abis/StableYieldManager.json';
 import StableYieldEscrowABI from '../contracts/abis/StableYieldEscrow.json';
 import LockedManagerABI from '../contracts/abis/LockedManager.json';
+import LockedPoolEscrowABI from '../contracts/abis/LockedPoolEscrow.json';
 import PoolRegistryABI from '../contracts/abis/PoolRegistry.json';
 import LiquidityPoolABI from '../contracts/abis/LiquidityPool.json';
 import StableYieldPoolABI from '../contracts/abis/StableYieldPool.json';
@@ -13,6 +14,8 @@ import LockedPoolABI from '../contracts/abis/LockedPool.json';
 import PoolFactoryABI from '../contracts/abis/PoolFactory.json';
 import ManagedPoolFactoryABI from '../contracts/abis/ManagedPoolFactory.json';
 import AccessManagerABI from '../contracts/abis/AccessManager.json';
+import FeeManagerABI from '../contracts/abis/FeeManager.json';
+import YieldReserveEscrowABI from '../contracts/abis/YieldReserveEscrow.json';
 import IERC20ABI from '../contracts/abis/IERC20.json';
 
 export type PoolType = 'SINGLE_ASSET' | 'STABLE_YIELD' | 'LOCKED';
@@ -126,6 +129,28 @@ export class BlockchainService {
   }
 
   /**
+   * Get FeeManager contract
+   */
+  getFeeManager(chainId: number): ethers.Contract {
+    const address = CONTRACT_ADDRESSES[chainId]?.feeManager;
+    if (!address) {
+      throw new Error(`FeeManager address not configured for chainId ${chainId}`);
+    }
+    return this.getContract(chainId, address, FeeManagerABI);
+  }
+
+  /**
+   * Get YieldReserveEscrow contract
+   */
+  getYieldReserveEscrow(chainId: number): ethers.Contract {
+    const address = CONTRACT_ADDRESSES[chainId]?.yieldReserveEscrow;
+    if (!address) {
+      throw new Error(`YieldReserveEscrow address not configured for chainId ${chainId}`);
+    }
+    return this.getContract(chainId, address, YieldReserveEscrowABI);
+  }
+
+  /**
    * Get PoolFactory contract (Single-Asset)
    */
   getPoolFactory(chainId: number): ethers.Contract {
@@ -197,6 +222,13 @@ export class BlockchainService {
    */
   getLockedPool(chainId: number, poolAddress: string): ethers.Contract {
     return this.getContract(chainId, poolAddress, LockedPoolABI);
+  }
+
+  /**
+   * Get LockedPoolEscrow contract by escrow address
+   */
+  getLockedPoolEscrow(chainId: number, escrowAddress: string): ethers.Contract {
+    return this.getContract(chainId, escrowAddress, LockedPoolEscrowABI);
   }
 
   /**
@@ -420,6 +452,75 @@ export class BlockchainService {
     };
   }
 
+  /**
+   * Get NAV per share for a Stable Yield pool (alias for getNAVPerShare)
+   */
+  async getStableYieldNAV(chainId: number, poolAddress: string): Promise<bigint> {
+    return this.getNAVPerShare(chainId, poolAddress);
+  }
+
+  /**
+   * Get user's position in the withdrawal queue for a Stable Yield pool
+   */
+  async getWithdrawalQueuePosition(
+    chainId: number,
+    poolAddress: string,
+    userAddress: string,
+  ): Promise<{
+    hasPending: boolean;
+    shares: bigint;
+    assets: bigint;
+    position: number | null;
+  }> {
+    const manager = this.getStableYieldManager(chainId);
+
+    try {
+      const userRequests = await manager.getUserWithdrawalRequests(poolAddress, userAddress);
+
+      if (!userRequests || userRequests.length === 0) {
+        return { hasPending: false, shares: BigInt(0), assets: BigInt(0), position: null };
+      }
+
+      const queueStatus = await manager.getWithdrawalQueueStatus(poolAddress);
+      let totalShares = BigInt(0);
+      let totalAssets = BigInt(0);
+      let position: number | null = null;
+
+      for (const requestId of userRequests) {
+        const request = await manager.withdrawalRequests(poolAddress, requestId);
+        if (!request.processed) {
+          totalShares += request.shares;
+          totalAssets += request.estimatedValue;
+          if (position === null) {
+            position = Number(requestId) - Number(queueStatus.head) + 1;
+          }
+        }
+      }
+
+      return {
+        hasPending: totalShares > BigInt(0),
+        shares: totalShares,
+        assets: totalAssets,
+        position,
+      };
+    } catch {
+      return { hasPending: false, shares: BigInt(0), assets: BigInt(0), position: null };
+    }
+  }
+
+  /**
+   * Preview withdrawal - convert shares to expected assets
+   */
+  async previewWithdrawal(
+    chainId: number,
+    poolAddress: string,
+    shares: bigint,
+  ): Promise<{ assets: bigint }> {
+    const pool = this.getLiquidityPool(chainId, poolAddress);
+    const assets = await pool.previewRedeem(shares);
+    return { assets };
+  }
+
   // ============================================================================
   // READ METHODS - LOCKED POOLS
   // ============================================================================
@@ -518,6 +619,110 @@ export class BlockchainService {
   async canMaturePosition(chainId: number, positionId: number): Promise<boolean> {
     const manager = this.getLockedPoolManager(chainId);
     return await manager.canMaturePosition(positionId);
+  }
+
+  // ============================================================================
+  // DEBT POSITION TRACKING
+  // ============================================================================
+
+  /**
+   * Get a single debt position by position ID
+   * Debt positions are created when early exit requires a loan from the YieldReserve
+   */
+  async getDebtPosition(
+    chainId: number,
+    positionId: number,
+  ): Promise<{
+    positionId: bigint;
+    user: string;
+    amountOwed: bigint;
+    reserveLoan: bigint;
+    pendingPenalty: bigint;
+    exitTime: bigint;
+    settled: boolean;
+  }> {
+    const manager = this.getLockedPoolManager(chainId);
+    return await manager.getDebtPosition(positionId);
+  }
+
+  /**
+   * Get all debt position IDs for a pool
+   */
+  async getPoolDebtPositions(chainId: number, poolAddress: string): Promise<bigint[]> {
+    const manager = this.getLockedPoolManager(chainId);
+    return await manager.getPoolDebtPositions(poolAddress);
+  }
+
+  /**
+   * Get debt positions with full details for a pool
+   */
+  async getPoolDebtPositionDetails(
+    chainId: number,
+    poolAddress: string,
+  ): Promise<
+    Array<{
+      positionId: bigint;
+      user: string;
+      amountOwed: bigint;
+      reserveLoan: bigint;
+      pendingPenalty: bigint;
+      exitTime: bigint;
+      settled: boolean;
+    }>
+  > {
+    const manager = this.getLockedPoolManager(chainId);
+    const positionIds = await manager.getPoolDebtPositions(poolAddress);
+
+    const positions = await Promise.all(
+      positionIds.map((id: bigint) => manager.getDebtPosition(id)),
+    );
+
+    return positions;
+  }
+
+  /**
+   * Get user's unsettled debt positions across all pools
+   */
+  async getUserDebtSummary(
+    chainId: number,
+    poolAddress: string,
+    userAddress: string,
+  ): Promise<{
+    totalDebt: bigint;
+    unsettledCount: number;
+    positions: Array<{
+      positionId: bigint;
+      amountOwed: bigint;
+      reserveLoan: bigint;
+      pendingPenalty: bigint;
+    }>;
+  }> {
+    const manager = this.getLockedPoolManager(chainId);
+    const positionIds = await manager.getPoolDebtPositions(poolAddress);
+
+    const allPositions = await Promise.all(
+      positionIds.map((id: bigint) => manager.getDebtPosition(id)),
+    );
+
+    const userPositions = allPositions.filter(
+      (p) => p.user.toLowerCase() === userAddress.toLowerCase() && !p.settled,
+    );
+
+    const totalDebt = userPositions.reduce(
+      (sum, p) => sum + p.amountOwed,
+      BigInt(0),
+    );
+
+    return {
+      totalDebt,
+      unsettledCount: userPositions.length,
+      positions: userPositions.map((p) => ({
+        positionId: p.positionId,
+        amountOwed: p.amountOwed,
+        reserveLoan: p.reserveLoan,
+        pendingPenalty: p.pendingPenalty,
+      })),
+    };
   }
 
   // ============================================================================
@@ -984,24 +1189,6 @@ export class BlockchainService {
   }
 
   /**
-   * Get debt position details
-   */
-  async getDebtPosition(
-    chainId: number,
-    positionId: number,
-  ): Promise<{
-    positionId: bigint;
-    user: string;
-    amountOwed: bigint;
-    reserveLoan: bigint;
-    exitTime: bigint;
-    settled: boolean;
-  }> {
-    const manager = this.getLockedPoolManager(chainId);
-    return await manager.getDebtPosition(positionId);
-  }
-
-  /**
    * Get all lock tiers for a locked pool from manager
    */
   async getLockedPoolTiersFromManager(
@@ -1421,5 +1608,430 @@ export class BlockchainService {
       tier,
     ]);
     return { to: manager.target as string, data };
+  }
+
+  // ============================================================================
+  // FEE MANAGER - READ METHODS
+  // ============================================================================
+
+  /**
+   * Get fee split configuration for a fee type
+   */
+  async getFeeSplit(
+    chainId: number,
+    feeType: number,
+  ): Promise<{
+    treasuryBps: bigint;
+    reserveBps: bigint;
+    opsBps: bigint;
+    active: boolean;
+  }> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getFeeSplit(feeType);
+  }
+
+  /**
+   * Get protocol fees summary across all assets
+   */
+  async getProtocolFeesSummary(chainId: number): Promise<{
+    totalCollectedAllTime: bigint;
+    pendingDistribution: bigint;
+    distributedToTreasury: bigint;
+    distributedToReserve: bigint;
+    distributedToOps: bigint;
+    assetCount: bigint;
+  }> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getProtocolFeesSummary();
+  }
+
+  /**
+   * Get asset-specific fee statistics
+   */
+  async getFeeAssetStats(
+    chainId: number,
+    assetAddress: string,
+  ): Promise<{
+    totalCollected: bigint;
+    totalDistributed: bigint;
+    treasuryCollected: bigint;
+    reserveCollected: bigint;
+    opsCollected: bigint;
+  }> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getAssetStats(assetAddress);
+  }
+
+  /**
+   * Get pool-specific fee statistics
+   */
+  async getPoolFeeStats(
+    chainId: number,
+    poolAddress: string,
+    assetAddress: string,
+  ): Promise<{
+    totalCollected: bigint;
+    byFeeType: bigint[];
+  }> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getPoolFeeStats(poolAddress, assetAddress);
+  }
+
+  /**
+   * Get pending distributions for an asset
+   */
+  async getPendingDistributions(
+    chainId: number,
+    assetAddress: string,
+  ): Promise<{
+    treasuryPending: bigint;
+    reservePending: bigint;
+    opsPending: bigint;
+  }> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getPendingDistributions(assetAddress);
+  }
+
+  /**
+   * Get all tracked assets in fee manager
+   */
+  async getFeeTrackedAssets(chainId: number): Promise<string[]> {
+    const feeManager = this.getFeeManager(chainId);
+    return await feeManager.getTrackedAssets();
+  }
+
+  // ============================================================================
+  // POOL DEPOSIT FEES
+  // ============================================================================
+
+  /**
+   * Get effective deposit fee for a locked pool
+   */
+  async getLockedPoolEffectiveDepositFee(
+    chainId: number,
+    poolAddress: string,
+  ): Promise<bigint> {
+    const manager = this.getLockedPoolManager(chainId);
+    return await manager.getEffectiveDepositFee(poolAddress);
+  }
+
+  /**
+   * Get effective deposit fee for a single-asset pool
+   */
+  async getSingleAssetDepositFee(
+    chainId: number,
+    poolAddress: string,
+  ): Promise<bigint> {
+    const manager = this.getManager(chainId);
+    return await manager.getEffectiveDepositFee(poolAddress);
+  }
+
+  /**
+   * Get effective deposit fee for a Stable Yield pool
+   * Note: Stable Yield may not have pool-specific fees, returns 0 if not configured
+   */
+  async getStableYieldEffectiveDepositFee(
+    chainId: number,
+    poolAddress: string,
+  ): Promise<bigint> {
+    try {
+      const manager = this.getStableYieldManager(chainId);
+      return await manager.getEffectiveDepositFee(poolAddress);
+    } catch {
+      return BigInt(0);
+    }
+  }
+
+  // ============================================================================
+  // YIELD RESERVE ESCROW - READ METHODS
+  // ============================================================================
+
+  /**
+   * Get yield reserve statistics
+   */
+  async getYieldReserveStats(chainId: number): Promise<{
+    balance: bigint;
+    loaned: bigint;
+    invested: bigint;
+    yieldReceived: bigint;
+    sentToTreasury: bigint;
+    lossesAbsorbed: bigint;
+  }> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getReserveStats();
+  }
+
+  /**
+   * Get protocol funds snapshot across all pools
+   */
+  async getProtocolFundsSnapshot(chainId: number): Promise<{
+    reserveBalance: bigint;
+    totalDeployedViaReserve: bigint;
+    totalDirectDeposits: bigint;
+    totalEarlyExitLoans: bigint;
+    grandTotal: bigint;
+    poolCount: bigint;
+  }> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getProtocolFundsSnapshot();
+  }
+
+  /**
+   * Get protocol funds for a specific pool
+   */
+  async getYieldReservePoolFunds(
+    chainId: number,
+    poolAddress: string,
+  ): Promise<{
+    fromReserve: bigint;
+    directDeposit: bigint;
+    earlyExitLoan: bigint;
+    total: bigint;
+  }> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getPoolProtocolFunds(poolAddress);
+  }
+
+  /**
+   * Get loan amount for a pool
+   */
+  async getPoolLoan(chainId: number, poolAddress: string): Promise<bigint> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getPoolLoan(poolAddress);
+  }
+
+  /**
+   * Get loan amount for a specific position
+   */
+  async getPositionLoan(chainId: number, positionId: number): Promise<bigint> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getPositionLoan(positionId);
+  }
+
+  /**
+   * Get available balance for loans
+   */
+  async getAvailableForLoan(chainId: number): Promise<bigint> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getAvailableForLoan();
+  }
+
+  /**
+   * Get all tracked pools in yield reserve
+   */
+  async getYieldReserveTrackedPools(chainId: number): Promise<string[]> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getTrackedPools();
+  }
+
+  /**
+   * Get reserve investment details
+   */
+  async getReserveInvestment(
+    chainId: number,
+    investmentId: number,
+  ): Promise<{
+    pool: string;
+    positionId: bigint;
+    amount: bigint;
+    expectedReturn: bigint;
+    investedAt: bigint;
+    active: boolean;
+  }> {
+    const reserve = this.getYieldReserveEscrow(chainId);
+    return await reserve.getInvestment(investmentId);
+  }
+
+  // ============================================================================
+  // LOCKED POOL ESCROW - READ METHODS
+  // ============================================================================
+
+  /**
+   * Get locked pool escrow data
+   */
+  async getLockedPoolEscrowData(
+    chainId: number,
+    escrowAddress: string,
+  ): Promise<{
+    principalHeld: bigint;
+    interestPaidOut: bigint;
+    penaltiesCollected: bigint;
+    protocolFundsFromReserve: bigint;
+    protocolFundsDirectDeposit: bigint;
+    totalBalance: bigint;
+    depositFeesCollected: bigint;
+    withdrawalFeesCollected: bigint;
+  }> {
+    const escrow = this.getLockedPoolEscrow(chainId, escrowAddress);
+    const [
+      principalHeld,
+      interestPaidOut,
+      penaltiesCollected,
+      protocolFundsFromReserve,
+      protocolFundsDirectDeposit,
+      totalBalance,
+      depositFeesCollected,
+      withdrawalFeesCollected,
+    ] = await Promise.all([
+      escrow.getPrincipalHeld(),
+      escrow.getInterestPaidOut(),
+      escrow.getPenaltiesCollected(),
+      escrow.getProtocolFundsFromReserve(),
+      escrow.getProtocolFundsDirectDeposit(),
+      escrow.getTotalBalance(),
+      escrow.getDepositFeesCollected(),
+      escrow.getWithdrawalFeesCollected(),
+    ]);
+    return {
+      principalHeld,
+      interestPaidOut,
+      penaltiesCollected,
+      protocolFundsFromReserve,
+      protocolFundsDirectDeposit,
+      totalBalance,
+      depositFeesCollected,
+      withdrawalFeesCollected,
+    };
+  }
+
+  // ============================================================================
+  // LOCKED POOL - USER TRANSACTION BUILDERS
+  // ============================================================================
+
+  /**
+   * Build locked deposit transaction
+   */
+  buildLockedDepositTx(
+    chainId: number,
+    poolAddress: string,
+    amount: bigint,
+    tierIndex: number,
+    interestPayment: 'UPFRONT' | 'AT_MATURITY',
+  ): { to: string; data: string } {
+    const pool = this.getLockedPool(chainId, poolAddress);
+    const paymentEnum = interestPayment === 'UPFRONT' ? 0 : 1;
+    const data = pool.interface.encodeFunctionData('depositLocked', [amount, tierIndex, paymentEnum]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build early exit transaction for locked position
+   */
+  buildEarlyExitTx(chainId: number, poolAddress: string, positionId: number): { to: string; data: string } {
+    const pool = this.getLockedPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('earlyExitPosition', [positionId]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build redeem transaction for matured locked position
+   */
+  buildRedeemPositionTx(chainId: number, poolAddress: string, positionId: number): { to: string; data: string } {
+    const pool = this.getLockedPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('redeemPosition', [positionId]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build set auto-rollover transaction
+   */
+  buildSetAutoRolloverTx(
+    chainId: number,
+    poolAddress: string,
+    positionId: number,
+    enabled: boolean,
+  ): { to: string; data: string } {
+    const pool = this.getLockedPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('setAutoRollover', [positionId, enabled]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build transfer position transaction
+   */
+  buildTransferPositionTx(
+    chainId: number,
+    poolAddress: string,
+    positionId: number,
+    newOwner: string,
+  ): { to: string; data: string } {
+    const pool = this.getLockedPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('transferPosition', [positionId, newOwner]);
+    return { to: pool.target as string, data };
+  }
+
+  // ============================================================================
+  // STABLE YIELD POOL - USER TRANSACTION BUILDERS
+  // ============================================================================
+
+  /**
+   * Build deposit transaction for stable yield pool
+   */
+  buildStableYieldDepositTx(
+    chainId: number,
+    poolAddress: string,
+    amount: bigint,
+    receiver: string,
+  ): { to: string; data: string } {
+    const pool = this.getStableYieldPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('deposit', [amount, receiver]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build withdrawal transaction for stable yield pool
+   */
+  buildStableYieldWithdrawTx(
+    chainId: number,
+    poolAddress: string,
+    shares: bigint,
+    receiver: string,
+    owner: string,
+  ): { to: string; data: string } {
+    const pool = this.getStableYieldPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('withdraw', [shares, receiver, owner]);
+    return { to: pool.target as string, data };
+  }
+
+  // ============================================================================
+  // SINGLE ASSET POOL - USER TRANSACTION BUILDERS
+  // ============================================================================
+
+  /**
+   * Build deposit transaction for single asset (liquidity) pool
+   */
+  buildSingleAssetDepositTx(
+    chainId: number,
+    poolAddress: string,
+    amount: bigint,
+    receiver: string,
+  ): { to: string; data: string } {
+    const pool = this.getLiquidityPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('deposit', [amount, receiver]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build withdrawal transaction for single asset pool
+   */
+  buildSingleAssetWithdrawTx(
+    chainId: number,
+    poolAddress: string,
+    shares: bigint,
+    receiver: string,
+    owner: string,
+  ): { to: string; data: string } {
+    const pool = this.getLiquidityPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('redeem', [shares, receiver, owner]);
+    return { to: pool.target as string, data };
+  }
+
+  /**
+   * Build claim coupon transaction for single asset pool
+   */
+  buildClaimCouponTx(chainId: number, poolAddress: string): { to: string; data: string } {
+    const pool = this.getLiquidityPool(chainId, poolAddress);
+    const data = pool.interface.encodeFunctionData('claimCoupon', []);
+    return { to: pool.target as string, data };
   }
 }

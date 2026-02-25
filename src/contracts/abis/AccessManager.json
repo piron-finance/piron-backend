@@ -229,16 +229,9 @@
     "type": "function",
     "name": "renounceRole",
     "inputs": [
-      { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "callerConfirmation", "type": "address", "internalType": "address" }
+      { "name": "", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "", "type": "address", "internalType": "address" }
     ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "renounceRole",
-    "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
