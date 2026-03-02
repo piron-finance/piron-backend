@@ -1,119 +1,89 @@
-import { DEV_ADDRESSES } from './addresses.dev';
-import { PROD_ADDRESSES } from './addresses.prod';
-
-export const NETWORKS = {
-  BASE_SEPOLIA: {
-    chainId: 84532,
-    name: 'Base Sepolia',
-    rpcUrl: process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org',
-    explorerUrl: 'https://sepolia.basescan.org',
-  },
-  BASE_MAINNET: {
-    chainId: 8453,
-    name: 'Base',
-    rpcUrl: process.env.BASE_MAINNET_RPC || 'https://mainnet.base.org',
-    explorerUrl: 'https://basescan.org',
-  },
-} as const;
-
-interface NetworkContracts {
-  // Governance
-  accessManager: string;
-  timelockController: string;
-  upgradeGuardian: string;
-
-  // Core Infrastructure
-  poolRegistry: string;
-  poolFactory: string;
-  manager: string;
-
-  // Stable Yield
-  stableYieldManager: string;
-  managedPoolFactory: string;
-
-  // Locked Pool
-  lockedPoolManager: string;
-
-  // Protocol Capital
-  yieldReserveEscrow: string;
-  feeManager: string;
-
-  // Treasury (defaults to timelockController)
-  treasury?: string;
-
-  // Assets
-  mockUSDC?: string;
-  usdc?: string;
-  cngn?: string;
-}
-
 /**
- * Contract addresses by chain ID
+ * Contract Addresses - Multi-Chain Support
  * 
- * Development (84532): addresses.dev.ts
- * Production (8453): addresses.prod.ts
+ * This file provides backward-compatible exports while using the new
+ * chain-based architecture under the hood.
+ * 
+ * For new code, prefer importing directly from './chains'
  */
-export const CONTRACT_ADDRESSES: Record<number, NetworkContracts> = {
-  // Base Sepolia (Development/Testnet)
-  84532: {
-    accessManager: DEV_ADDRESSES.accessManager,
-    timelockController: DEV_ADDRESSES.timelockController,
-    upgradeGuardian: DEV_ADDRESSES.upgradeGuardian,
-    poolRegistry: DEV_ADDRESSES.poolRegistry,
-    poolFactory: DEV_ADDRESSES.poolFactory,
-    manager: DEV_ADDRESSES.manager,
-    stableYieldManager: DEV_ADDRESSES.stableYieldManager,
-    managedPoolFactory: DEV_ADDRESSES.managedPoolFactory,
-    lockedPoolManager: DEV_ADDRESSES.lockedPoolManager,
-    yieldReserveEscrow: DEV_ADDRESSES.yieldReserveEscrow,
-    feeManager: DEV_ADDRESSES.feeManager,
-    mockUSDC: DEV_ADDRESSES.mockUSDC,
-    usdc: DEV_ADDRESSES.usdc,
-    cngn: DEV_ADDRESSES.cngn,
-  },
 
-  // Base Mainnet (Production)
-  8453: {
-    accessManager: PROD_ADDRESSES.accessManager,
-    timelockController: PROD_ADDRESSES.timelockController,
-    upgradeGuardian: PROD_ADDRESSES.upgradeGuardian,
-    poolRegistry: PROD_ADDRESSES.poolRegistry,
-    poolFactory: PROD_ADDRESSES.poolFactory,
-    manager: PROD_ADDRESSES.manager,
-    stableYieldManager: PROD_ADDRESSES.stableYieldManager,
-    managedPoolFactory: PROD_ADDRESSES.managedPoolFactory,
-    lockedPoolManager: PROD_ADDRESSES.lockedPoolManager,
-    yieldReserveEscrow: PROD_ADDRESSES.yieldReserveEscrow,
-    feeManager: PROD_ADDRESSES.feeManager,
-    usdc: PROD_ADDRESSES.usdc,
-    cngn: PROD_ADDRESSES.cngn,
-  },
-} as const;
-
-export type ChainId = keyof typeof CONTRACT_ADDRESSES;
-
-export function getContractAddresses(chainId: ChainId) {
-  const addresses = CONTRACT_ADDRESSES[chainId];
-  if (!addresses) {
-    throw new Error(`No contract addresses for chain ${chainId}`);
-  }
-  return addresses;
-}
-
-export function getNetworkConfig(chainId: ChainId) {
-  if (chainId === 84532) return NETWORKS.BASE_SEPOLIA;
-  if (chainId === 8453) return NETWORKS.BASE_MAINNET;
-  throw new Error(`Unsupported chain ${chainId}`);
-}
-
-export function getDeploymentInfo() {
-  const env = process.env.NODE_ENV || 'development';
-  const isProd = env === 'production';
+// Re-export everything from the new chain system
+export {
+  // Types
+  NetworkConfig,
+  ContractAddresses,
+  ChainDeployment,
+  SupportedChainId,
   
+  // Registry
+  CHAIN_DEPLOYMENTS,
+  NETWORKS,
+  DEPLOYED_CHAINS,
+  
+  // Helpers
+  isSupportedChain,
+  isDeployedChain,
+  isTestnet,
+  getNetwork,
+  getAddresses,
+  getDeployment,
+  getActiveChainId,
+  getActiveDeployment,
+  listChains,
+  getCounterpartChain,
+  
+  // Contract verification
+  verifyContractExists,
+  detectContractChains,
+} from './chains';
+
+// Import for backward compatibility aliases
+import {
+  NETWORKS as CHAIN_NETWORKS,
+  getAddresses,
+  getNetwork,
+  getActiveChainId,
+  getActiveDeployment,
+  ContractAddresses,
+} from './chains';
+
+// ============================================================================
+// BACKWARD COMPATIBILITY (deprecated - use chains/* instead)
+// ============================================================================
+
+/** @deprecated Use getAddresses(chainId) instead */
+export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
+  get 84532() { return getAddresses(84532); },
+  get 8453() { return getAddresses(8453); },
+};
+
+/** @deprecated Use chains/base.ts exports instead */
+export const DEV_ADDRESSES = getAddresses(84532);
+export const PROD_ADDRESSES = getAddresses(8453);
+
+export type ChainId = 84532 | 8453;
+
+/** @deprecated Use getAddresses(chainId) instead */
+export function getContractAddresses(chainId: ChainId) {
+  return getAddresses(chainId);
+}
+
+/** @deprecated Use getNetwork(chainId) instead */
+export function getNetworkConfig(chainId: ChainId) {
+  return getNetwork(chainId);
+}
+
+/** @deprecated Use getActiveDeployment() instead */
+export function getDeploymentInfo() {
+  const deployment = getActiveDeployment();
   return {
-    environment: env,
-    chainId: isProd ? 8453 : 84532,
-    network: isProd ? NETWORKS.BASE_MAINNET : NETWORKS.BASE_SEPOLIA,
-    deploymentVersion: isProd ? PROD_ADDRESSES.deploymentVersion : DEV_ADDRESSES.deploymentVersion,
+    environment: deployment.environment,
+    chainId: deployment.network.chainId,
+    network: deployment.network,
+    deploymentVersion: deployment.deploymentVersion,
+    addresses: deployment.addresses,
   };
 }
+
+/** @deprecated NetworkContracts is now ContractAddresses */
+export type NetworkContracts = ContractAddresses;

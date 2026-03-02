@@ -1,8 +1,8 @@
 /**
  * Development Database Reset Script
  * 
- * Run this when you redeploy contracts to clear stale pool data.
- * This preserves user accounts but clears all pool-related data.
+ * Run this when you redeploy contracts to get a completely fresh database.
+ * Wipes ALL data - new contracts = fresh start.
  * 
  * Usage: npm run db:reset:dev
  */
@@ -12,7 +12,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function resetDevDatabase() {
-  console.log('🔄 Resetting development database...\n');
+  console.log('🔄 Wiping development database...\n');
 
   // Safety check - don't run in production
   if (process.env.NODE_ENV === 'production') {
@@ -21,8 +21,12 @@ async function resetDevDatabase() {
   }
 
   try {
-    // Delete in order of dependencies (child tables first)
-    console.log('Clearing pool-related data...');
+    // Delete ALL tables in dependency order (children first)
+    console.log('Clearing all data...');
+
+    // Audit logs
+    const auditCount = await prisma.auditLog.deleteMany({});
+    console.log(`  ✓ Deleted ${auditCount.count} audit logs`);
 
     // Transactions & Operations
     const txCount = await prisma.transaction.deleteMany({});
@@ -60,13 +64,17 @@ async function resetDevDatabase() {
     const prefCount = await prisma.sPVPreference.deleteMany({});
     console.log(`  ✓ Deleted ${prefCount.count} SPV preferences`);
 
-    // Finally, delete pools
+    // Pools
     const poolCount = await prisma.pool.deleteMany({});
     console.log(`  ✓ Deleted ${poolCount.count} pools`);
 
-    console.log('\n✅ Development database reset complete!');
+    // Users - wipe them too, new contracts = fresh start
+    const userCount = await prisma.user.deleteMany({});
+    console.log(`  ✓ Deleted ${userCount.count} users`);
+
+    console.log('\n✅ Database completely wiped!');
     console.log('\n📋 Next steps:');
-    console.log('  1. Update addresses in src/contracts/addresses.dev.ts');
+    console.log('  1. Update addresses in src/contracts/chains/base.ts (or relevant chain file)');
     console.log('  2. Restart the server: npm run dev');
     console.log('  3. Create new pools through the admin interface');
 
@@ -78,14 +86,13 @@ async function resetDevDatabase() {
   }
 }
 
-// Prompt for confirmation
 async function main() {
   const args = process.argv.slice(2);
   const force = args.includes('--force') || args.includes('-f');
 
   if (!force) {
-    console.log('⚠️  WARNING: This will delete all pool data from the database!');
-    console.log('   User accounts will be preserved.\n');
+    console.log('⚠️  WARNING: This will DELETE ALL DATA from the database!');
+    console.log('   Including users, pools, transactions - everything.\n');
     console.log('   To proceed, run with --force flag:');
     console.log('   npm run db:reset:dev -- --force\n');
     process.exit(0);

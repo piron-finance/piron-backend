@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { PrismaService } from './prisma.service';
+import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { PoolsModule } from './modules/pools/pools.module';
 import { PlatformModule } from './modules/platform/platform.module';
@@ -23,10 +24,11 @@ import { BlockchainModule } from './blockchain/blockchain.module';
         password: process.env.REDIS_PASSWORD,
       },
       defaultJobOptions: {
-        removeOnComplete: 100, // Keep last 100 completed jobs
-        removeOnFail: 1000, // Keep last 1000 failed jobs
+        removeOnComplete: 100,
+        removeOnFail: 1000,
       },
     }),
+    HealthModule,
     BlockchainModule,
     UsersModule,
     PoolsModule,
