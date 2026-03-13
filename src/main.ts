@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { getDeploymentInfo } from './contracts/addresses';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,13 +29,22 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const deployment = getDeploymentInfo();
+  
+  console.log('='.repeat(60));
+  console.log('PIRON BACKEND STARTED');
+  console.log('='.repeat(60));
+  console.log(`Environment:  ${deployment.environment.toUpperCase()}`);
+  console.log(`Chain:        ${deployment.network.name} (${deployment.chainId})`);
+  console.log(`Version:      ${deployment.deploymentVersion}`);
+  console.log(`Port:         ${port}`);
+  console.log('='.repeat(60));
 
-  if (isProduction) {
-    console.log(`Piron Backend running in PRODUCTION mode on port ${port}`);
+  if (deployment.environment === 'production') {
+    console.log('Running in PRODUCTION mode');
   } else {
-    console.log(` Piron Backend running on: http://localhost:${port}`);
-    console.log(` Network access: Change localhost to your Mac's IP address`);
+    console.log(`Local:        http://localhost:${port}`);
+    console.log(`API Docs:     http://localhost:${port}/api/v1`);
   }
 }
 
